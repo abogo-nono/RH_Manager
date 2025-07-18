@@ -1,0 +1,319 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Recrutement</h2>
+<div class="container">
+  <!-- Barre de recherche -->
+  <div class="row mb-3">
+    <div class="d-flex justify-content-end mb-2">
+      <a href="{{ url_for('recrutement.historique_offres_supprimees') }}" class="btn btn-outline-dark me-1">Historique des Suppressions</a>
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newOfferModal">Nouvelle offre d'emploi</button>
+    </div>
+    <div class="col-md-4">
+      <input type="text" id="searchInput" class="form-control" placeholder="Rechercher un poste...">
+    </div>
+  </div>
+
+  <!-- Cartes -->
+  <div class="row" id="cardsContainer">
+    {% for offre in offres %}
+    <div class="col-md-4 mb-4">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">{{ offre.titre }}</h5>
+          <h6 class="card-subtitle text-muted">{{ offre.departement }}</h6>
+          <small><p>{{ offre.description | truncate(100) }}</p></small>
+
+          {% if offre.statut == 'Actif' %}
+            <span class="badge bg-success">{{ offre.statut }}</span>
+          {% elif offre.statut == 'Brouillon' %}
+            <span class="badge bg-secondary">{{ offre.statut }}</span>
+          {% elif offre.statut == 'Clôture' %}
+            <span class="badge bg-primary">{{ offre.statut }}</span>
+          {% else %}
+            <span class="badge bg-danger">{{ offre.statut }}</span>
+          {% endif %}
+
+          <div class="mt-2 d-flex justify-content-between">
+            <small><i class="bi bi-people"></i> <br> {{ offre.nb_candidats }} <br> Candidats</small>
+            <small><i class="bi bi-calendar-check"></i> <br> {{ offre.nb_entretiens }} <br> Entretiens</small>
+            <small><i class="bi bi-hourglass-split"></i> <br>
+              {% if offre.statut == 'Clôturé' %}
+                Terminé
+              {% else %}
+                {{ offre.jours_restants }}j
+              {% endif %} <br> Restants
+            </small>
+          </div>
+
+          <br><small>Publié le {{ offre.date_publication.strftime('%d/%m/%Y') }} | Fin le {{ offre.date_cloture.strftime('%d/%m/%Y') }}</small>
+
+          <div class="mt-2">
+            {% if offre.statut == 'Actif' or offre.statut == 'Clôturé' %}
+              <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#detailsModal{{ offre.id }}">Voir les détails</button>
+            {% elif offre.statut == 'Brouillon' %}
+              <a href="{{ url_for('recrutement.publier_offre', id=offre.id) }}" class="btn btn-success btn-sm">Publier</a>
+            {% endif %}
+            <button type="submit" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteOffreModal{{ offre.id }}">Supprimer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Détails -->
+<div class="modal fade" id="detailsModal{{ offre.id }}" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title">{{ offre.titre }}</h5>
+          <small class="text-muted">{{ offre.departement }}</small>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Bloc détails -->
+        <div class="border p-3 mb-3 rounded">
+          <p>{{ offre.description }}</p>
+          <div class="row">
+            <div class="col">
+              <strong>Date de publication :</strong><br>
+              {{ offre.date_publication.strftime('%d/%m/%Y') }}
+            </div>
+            <div class="col">
+              <strong>Date de clôture :</strong><br>
+              {{ offre.date_cloture.strftime('%d/%m/%Y') }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Onglets -->
+        <ul class="nav nav-tabs" role="tablist">
+          <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#candidats{{ offre.id }}" type="button">
+              Candidats ({{ offre.nb_candidats }})
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#entretiens{{ offre.id }}" type="button">
+              Entretiens ({{ offre.nb_entretiens }})
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content p-3 border border-top-0 rounded-bottom">
+          <!-- Tab Candidats -->
+          <div class="tab-pane fade show active" id="candidats{{ offre.id }}">
+            {% if offre.candidats %}
+              {% for candidat in offre.candidats %}
+                <div class="border p-3 mb-2 rounded">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <strong>{{ candidat.nom }}</strong>
+                    <span class="badge 
+                      {% if candidat.statut == 'entretien planifié' %}bg-primary
+                      {% elif candidat.statut == 'refusé' %}bg-danger
+                      {% else %}bg-warning text-dark{% endif %}">
+                      {{ candidat.statut|capitalize }}
+                    </span>
+                  </div>
+                  <small>{{ candidat.email }} | {{candidat.telephone}} | Soumis le {{ candidat.date_soumission.strftime('%d/%m/%Y') }}</small>
+                  <p class="mt-2">CV : <a href="{{ url_for('static', filename='uploads/' + candidat.cv) }}" target="_blank">Voir</a> |
+                    Lettre : <a href="{{ url_for('static', filename='uploads/' + candidat.lettre_motivation) }}" target="_blank">Voir</a>
+                  </p>
+                  {% if candidat.statut == 'en cours d\'examen' %}
+                    <!--<button class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#newEntretienModal">Planifier un entretien</button>-->
+                      <form method="POST" action="{{ url_for('recrutement.planifier_entretien', offre_id=offre.id, candidat_id=candidat.id) }}">
+                        <div class="mb-2">
+                          <label>Titre entretien</label>
+                          <input name="titre" class="form-control" required>
+                        </div>
+                        <div class="mb-2">
+                          <label>Date et heure</label>
+                          <input type="datetime-local" name="datetime" class="form-control" required>
+                        </div>
+                        <div class="mb-2">
+                          <label>Durée (minutes)</label>
+                          <input type="number" name="duree" class="form-control" required>
+                        </div>
+                        <div class="mb-2">
+                          <label>Participants</label>
+                          <input name="participants" class="form-control">
+                        </div>
+                        <div class="mb-2">
+                          <label>Notes</label>
+                          <input name="notes" class="form-control">
+                        </div>
+                        <button type="submit" class="btn btn-success btn-sm">Planifier l'entretien</button>
+                      </form>
+                  {% endif %}
+                  {% if candidat.statut == 'entretien planifié' %}
+                    <a href="{{ url_for('recrutement.accepter_candidat', offre_id=offre.id, candidat_id=candidat.id) }}"class="btn btn-sm btn-success">Accepter</a>
+                  {% endif %}
+                  {% if candidat.statut != 'refusé' and candidat.statut == 'entretien planifié' %}
+                    <button type="submit" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#refusCandidatModal{{ offre.id }}">Refuser</button>
+                  {% endif %}
+
+                </div>
+              {% endfor %}
+            {% else %}
+              <p class="text-muted">Aucun candidat pour le moment.</p>
+            {% endif %}
+          </div>
+
+          <!-- Tab Entretiens -->
+          <div class="tab-pane fade" id="entretiens{{ offre.id }}">
+            {% if offre.entretiens %}
+              {% for entretien in offre.entretiens %}
+                <div class="border p-3 mb-2 rounded">
+                  <strong>{{ entretien.titre }}</strong><br>
+                  <small>Date : {{ entretien.datetime.strftime('%d/%m/%Y %H:%M') }} |
+                    Durée : {{ entretien.duree }} min</small><br>
+                  <small>Participants : {{ entretien.participants }}</small><br>
+                  <p class="mt-2">Notes : {{ entretien.notes or 'Aucune note.' }}</p>
+                </div>
+              {% endfor %}
+            {% else %}
+              <p class="text-muted">Aucun entretien planifié.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+<!-- Modal Supprimer -->
+{% for offre in offres %}
+<div class="modal fade" id="deleteOffreModal{{ offre.id }}" tabindex="-1" aria-labelledby="deleteOffreModalLabel{{ offre.id }}" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('recrutement.supprimer_offre', id=offre.id) }}" style="display:inline;">
+        <div class="modal-header">
+          <h5 class="modal-title" id="deleteOffreModalLabel{{ offre.id }}">Confirmer la suppression</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          Voulez-vous vraiment supprimer cette offre ?
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger">Supprimer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% for candidat in offre.candidats %}
+<div class="modal fade" id="refusCandidatModal{{ offre.id }}" tabindex="-1" aria-labelledby="refusCandidatModalLabel{{ offre.id }}" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('recrutement.refuser_candidat', offre_id=offre.id, candidat_id=candidat.id) }}" style="display:inline;">
+        <div class="modal-header">
+          <h5 class="modal-title" id="refusCandidatModalLabel{{ offre.id }}">Confirmer la suppression</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          Confirmer le refus de ce candidat ?
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger">Supprimer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% endfor %}
+
+<!-- Modal Nouvelle offre -->
+<div class="modal fade" id="newOfferModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form action="{{ url_for('recrutement.creer_offre') }}" method="POST">
+        <div class="modal-header">
+          <h5 class="modal-title">Nouvelle offre d'emploi</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input name="titre" class="form-control mb-2" placeholder="Titre du poste" required>
+          <input name="departement" class="form-control mb-2" placeholder="Département" required>
+          <textarea name="description" class="form-control mb-2" placeholder="Description"></textarea>
+          <textarea name="requirements" class="form-control mb-2" placeholder="Prérequis et compétences"></textarea>
+          <input type="date" name="date_cloture" class="form-control mb-2" required>
+          <select name="statut" class="form-control">
+            <option value="Brouillon">Brouillon</option>
+            <option value="Actif">Actif</option>
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Créer l'offre</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nouvelle entretien -->
+ <!--
+ {% for offre in offres %}
+ {% for candidat in offre.candidats %}
+<div class="modal fade" id="newEntretienModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form action="{{ url_for('recrutement.planifier_entretien', offre_id=offre.id, candidat_id=candidat.id) }}" method="POST">
+        <div class="modal-header">
+          <h5 class="modal-title">Planifier un entretien</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2">
+            <label>Titre entretien</label>
+            <input name="titre" class="form-control" required>
+          </div>
+          <div class="mb-2">
+            <label>Date et heure</label>
+            <input type="datetime-local" name="datetime" class="form-control" required>
+          </div>
+          <div class="mb-2">
+            <label>Durée (minutes)</label>
+            <input type="number" name="duree" class="form-control" required>
+          </div>
+          <div class="mb-2">
+            <label>Participants</label>
+            <input name="participants" class="form-control">
+          </div>
+          <div class="mb-2">
+            <label>Notes</label>
+            <input name="notes" class="form-control">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success btn-sm">Planifier l'entretien</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% endfor %}
+-->
+<!-- Filtrage JS -->
+<script>
+  document.getElementById('searchInput').addEventListener('input', function() {
+    const normalize = str => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();                  
+    const query = normalize(this.value);
+    document.querySelectorAll('#cardsContainer .col-md-4').forEach(card => {
+      const title = normalize(card.querySelector('.card-title').textContent);
+      card.style.display = title.includes(query) ? 'block' : 'none';
+    });
+  });
+</script>
+{% endblock %}

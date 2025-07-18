@@ -1,0 +1,463 @@
+{% extends "base.html" %}
+
+{% block title %}Bulletin de Paie - {{ bulletin.employe.nom }} {{ bulletin.employe.prenom }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-file-invoice-dollar me-2"></i>Bulletin de Paie</h2>
+            <p class="text-muted">
+                {{ bulletin.employe.nom }} {{ bulletin.employe.prenom }} - {{ bulletin.mois_nom }} {{ bulletin.annee }}
+            </p>
+        </div>
+        <div>
+            <a href="{{ url_for('paie.bulletins') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Retour
+            </a>
+            {% if bulletin.statut == 'brouillon' %}
+                <a href="{{ url_for('paie.modifier_bulletin', id=bulletin.id) }}" class="btn btn-warning">
+                    <i class="fas fa-edit me-2"></i>Modifier
+                </a>
+            {% endif %}
+            <button class="btn btn-info" onclick="imprimerBulletin()">
+                <i class="fas fa-print me-2"></i>Imprimer
+            </button>
+            <a href="{{ url_for('paie.telecharger_bulletin', id=bulletin.id) }}" class="btn btn-success">
+                <i class="fas fa-download me-2"></i>Télécharger PDF
+            </a>
+        </div>
+    </div>
+
+    <!-- Statut du bulletin -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>Statut du bulletin:</strong>
+                            {% if bulletin.statut == 'payé' %}
+                                <span class="badge bg-success ms-2">
+                                    <i class="fas fa-check me-1"></i>Payé
+                                </span>
+                            {% elif bulletin.statut == 'validé' %}
+                                <span class="badge bg-primary ms-2">
+                                    <i class="fas fa-clipboard-check me-1"></i>Validé
+                                </span>
+                            {% elif bulletin.statut == 'brouillon' %}
+                                <span class="badge bg-secondary ms-2">
+                                    <i class="fas fa-edit me-1"></i>Brouillon
+                                </span>
+                            {% endif %}
+                        </div>
+                        <div>
+                            {% if bulletin.statut == 'brouillon' %}
+                                <button class="btn btn-primary" onclick="validerBulletin()">
+                                    <i class="fas fa-check me-2"></i>Valider
+                                </button>
+                            {% elif bulletin.statut == 'validé' %}
+                                <button class="btn btn-success" onclick="marquerPaye()">
+                                    <i class="fas fa-credit-card me-2"></i>Marquer comme payé
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulletin de paie -->
+    <div class="card" id="bulletin-content">
+        <div class="card-body">
+            <!-- En-tête de l'entreprise -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <h3>{{ entreprise.nom or 'Nom de l\'Entreprise' }}</h3>
+                    <p class="mb-1">{{ entreprise.adresse or 'Adresse de l\'entreprise' }}</p>
+                    <p class="mb-1">{{ entreprise.ville or 'Ville' }}, {{ entreprise.code_postal or 'Code postal' }}</p>
+                    <p class="mb-1">Tél: {{ entreprise.telephone or 'Téléphone' }}</p>
+                    <p class="mb-1">Email: {{ entreprise.email or 'Email' }}</p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <h4>BULLETIN DE PAIE</h4>
+                    <p class="mb-1"><strong>Période:</strong> {{ bulletin.mois_nom }} {{ bulletin.annee }}</p>
+                    <p class="mb-1"><strong>N° Bulletin:</strong> {{ bulletin.numero_bulletin or bulletin.id }}</p>
+                    <p class="mb-1"><strong>Date d'édition:</strong> {{ bulletin.date_creation.strftime('%d/%m/%Y') }}</p>
+                </div>
+            </div>
+
+            <hr>
+
+            <!-- Informations employé -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <h5>Informations Employé</h5>
+                    <table class="table table-sm table-borderless">
+                        <tr>
+                            <td><strong>Nom:</strong></td>
+                            <td>{{ bulletin.employe.nom }} {{ bulletin.employe.prenom }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Matricule:</strong></td>
+                            <td>{{ bulletin.employe.matricule }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Poste:</strong></td>
+                            <td>{{ bulletin.employe.poste }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Département:</strong></td>
+                            <td>{{ bulletin.employe.departement }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Date d'embauche:</strong></td>
+                            <td>{{ bulletin.employe.date_embauche.strftime('%d/%m/%Y') if bulletin.employe.date_embauche else 'Non définie' }}</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h5>Informations Paie</h5>
+                    <table class="table table-sm table-borderless">
+                        <tr>
+                            <td><strong>Heures travaillées:</strong></td>
+                            <td>{{ bulletin.heures_travaillees or 0 }} h</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Heures supplémentaires:</strong></td>
+                            <td>{{ bulletin.heures_supplementaires or 0 }} h</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Jours travaillés:</strong></td>
+                            <td>{{ bulletin.jours_travailles or 0 }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Taux horaire:</strong></td>
+                            <td>{{ format_currency(bulletin.salaire_base / 173.33) if bulletin.salaire_base else '0,00 MAD' }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Détail des éléments -->
+            <div class="row">
+                <div class="col-md-12">
+                    <h5>Détail du Bulletin</h5>
+                    <table class="table table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Désignation</th>
+                                <th class="text-center">Nombre</th>
+                                <th class="text-center">Taux/Montant</th>
+                                <th class="text-center">Gain</th>
+                                <th class="text-center">Retenue</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Salaire de base -->
+                            <tr>
+                                <td>Salaire de base</td>
+                                <td class="text-center">{{ bulletin.heures_travaillees or 173.33 }}</td>
+                                <td class="text-center">{{ format_currency(bulletin.salaire_base / 173.33) if bulletin.salaire_base else '0,00 MAD' }}</td>
+                                <td class="text-center">{{ format_currency(bulletin.salaire_base) }}</td>
+                                <td class="text-center">-</td>
+                            </tr>
+
+                            <!-- Heures supplémentaires -->
+                            {% if bulletin.heures_supplementaires %}
+                            <tr>
+                                <td>Heures supplémentaires (25%)</td>
+                                <td class="text-center">{{ bulletin.heures_supplementaires }}</td>
+                                <td class="text-center">{{ format_currency((bulletin.salaire_base / 173.33) * 1.25) }}</td>
+                                <td class="text-center">{{ format_currency(bulletin.heures_supplementaires * (bulletin.salaire_base / 173.33) * 1.25) }}</td>
+                                <td class="text-center">-</td>
+                            </tr>
+                            {% endif %}
+
+                            <!-- Éléments de paie -->
+                            {% for element in bulletin.elements %}
+                            <tr>
+                                <td>{{ element.designation }}</td>
+                                <td class="text-center">1</td>
+                                <td class="text-center">{{ format_currency(element.montant) }}</td>
+                                <td class="text-center">
+                                    {% if element.type_element.nature == 'gain' %}
+                                        {{ format_currency(element.montant) }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if element.type_element.nature == 'retenue' %}
+                                        {{ format_currency(element.montant) }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+
+                            <!-- Ligne de total brut -->
+                            <tr class="table-warning">
+                                <td><strong>TOTAL BRUT</strong></td>
+                                <td class="text-center">-</td>
+                                <td class="text-center">-</td>
+                                <td class="text-center"><strong>{{ format_currency(bulletin.salaire_brut) }}</strong></td>
+                                <td class="text-center">-</td>
+                            </tr>
+
+                            <!-- Cotisations sociales -->
+                            {% for cotisation in cotisations %}
+                            <tr>
+                                <td>{{ cotisation.nom }}</td>
+                                <td class="text-center">{{ cotisation.taux_employe }}%</td>
+                                <td class="text-center">{{ format_currency(bulletin.salaire_brut) }}</td>
+                                <td class="text-center">-</td>
+                                <td class="text-center">{{ format_currency(bulletin.salaire_brut * cotisation.taux_employe / 100) }}</td>
+                            </tr>
+                            {% endfor %}
+
+                            <!-- Avances -->
+                            {% if bulletin.avances %}
+                            <tr>
+                                <td>Avances sur salaire</td>
+                                <td class="text-center">-</td>
+                                <td class="text-center">-</td>
+                                <td class="text-center">-</td>
+                                <td class="text-center">{{ format_currency(bulletin.avances) }}</td>
+                            </tr>
+                            {% endif %}
+
+                            <!-- Retenues -->
+                            {% if bulletin.retenues %}
+                            <tr>
+                                <td>Autres retenues</td>
+                                <td class="text-center">-</td>
+                                <td class="text-center">-</td>
+                                <td class="text-center">-</td>
+                                <td class="text-center">{{ format_currency(bulletin.retenues) }}</td>
+                            </tr>
+                            {% endif %}
+
+                            <!-- Ligne de total des retenues -->
+                            <tr class="table-danger">
+                                <td><strong>TOTAL RETENUES</strong></td>
+                                <td class="text-center">-</td>
+                                <td class="text-center">-</td>
+                                <td class="text-center">-</td>
+                                <td class="text-center"><strong>{{ format_currency(bulletin.total_retenues) }}</strong></td>
+                            </tr>
+
+                            <!-- Ligne de total net -->
+                            <tr class="table-success">
+                                <td><strong>NET A PAYER</strong></td>
+                                <td class="text-center">-</td>
+                                <td class="text-center">-</td>
+                                <td class="text-center"><strong>{{ format_currency(bulletin.salaire_net) }}</strong></td>
+                                <td class="text-center">-</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Récapitulatif -->
+            <div class="row mt-4">
+                <div class="col-md-8">
+                    {% if bulletin.commentaires %}
+                    <div class="card">
+                        <div class="card-header">
+                            <h6>Commentaires</h6>
+                        </div>
+                        <div class="card-body">
+                            <p>{{ bulletin.commentaires }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6>Récapitulatif</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-2">
+                                <div class="col-8">Salaire brut:</div>
+                                <div class="col-4 text-end">{{ format_currency(bulletin.salaire_brut) }}</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-8">Total retenues:</div>
+                                <div class="col-4 text-end">{{ format_currency(bulletin.total_retenues) }}</div>
+                            </div>
+                            <hr>
+                            <div class="row">
+                                <div class="col-8"><strong>Net à payer:</strong></div>
+                                <div class="col-4 text-end"><strong>{{ format_currency(bulletin.salaire_net) }}</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pied de page -->
+            <div class="row mt-4 pt-3 border-top">
+                <div class="col-md-6">
+                    <small class="text-muted">
+                        Ce bulletin de paie est conforme à la législation en vigueur.<br>
+                        Conservez ce document, il vous sera utile pour vos démarches administratives.
+                    </small>
+                </div>
+                <div class="col-md-6 text-end">
+                    <small class="text-muted">
+                        Généré le {{ bulletin.date_creation.strftime('%d/%m/%Y à %H:%M') }}<br>
+                        Par {{ current_user.nom_utilisateur }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Historique des modifications -->
+    {% if bulletin.historique %}
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5><i class="fas fa-history me-2"></i>Historique des Modifications</h5>
+        </div>
+        <div class="card-body">
+            <div class="timeline">
+                {% for historique in bulletin.historique %}
+                <div class="timeline-item">
+                    <div class="timeline-marker"></div>
+                    <div class="timeline-content">
+                        <h6>{{ historique.action }}</h6>
+                        <p class="text-muted">{{ historique.details }}</p>
+                        <small class="text-muted">
+                            {{ historique.date_modification.strftime('%d/%m/%Y à %H:%M') }} par {{ historique.utilisateur.nom_utilisateur }}
+                        </small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+/* Styles pour l'impression */
+@media print {
+    .btn, .card-header, .timeline, .no-print {
+        display: none !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .container-fluid {
+        padding: 0 !important;
+    }
+    
+    /* Forcer l'affichage des couleurs de fond des tableaux */
+    .table-warning,
+    .table-danger,
+    .table-success {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+}
+
+/* Styles de la timeline */
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 30px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -23px;
+    top: 0;
+    width: 16px;
+    height: 16px;
+    background: #0d6efd;
+    border-radius: 50%;
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 2px #dee2e6;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #0d6efd;
+}
+</style>
+
+<script>
+function imprimerBulletin() {
+    window.print();
+}
+
+function validerBulletin() {
+    if (confirm('Voulez-vous valider ce bulletin de paie ?')) {
+        fetch(`{{ url_for('paie.valider_bulletin', id=bulletin.id) }}`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erreur lors de la validation: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Erreur lors de la validation');
+        });
+    }
+}
+
+function marquerPaye() {
+    if (confirm('Voulez-vous marquer ce bulletin comme payé ?')) {
+        fetch(`{{ url_for('paie.marquer_paye', id=bulletin.id) }}`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erreur lors du marquage: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Erreur lors du marquage');
+        });
+    }
+}
+</script>
+{% endblock %}

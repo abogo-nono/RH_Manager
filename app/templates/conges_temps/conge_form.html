@@ -1,0 +1,392 @@
+<!-- Formulaire de demande de congé -->
+<div class="container-fluid">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-calendar-plus"></i>
+            {% if conge %}Modifier la demande de congé{% else %}Nouvelle demande de congé{% endif %}
+          </h5>
+        </div>
+        
+        <form method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
+          <div class="card-body">
+            {{ form.hidden_tag() }}
+            
+            <!-- Informations du demandeur -->
+            <div class="row mb-4">
+              <div class="col-md-6">
+                <div class="card bg-light">
+                  <div class="card-body">
+                    <h6 class="card-title">Informations du demandeur</h6>
+                    <div class="d-flex align-items-center">
+                      {% if current_user.employe and current_user.employe.photo %}
+                      <img src="{{ url_for('static', filename='uploads/employees/photos/' ~ current_user.employe.photo) }}" 
+                           class="rounded-circle me-3" width="50" height="50" alt="Photo">
+                      {% else %}
+                      <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center me-3" 
+                           style="width: 50px; height: 50px;">
+                        <i class="bi bi-person text-white"></i>
+                      </div>
+                      {% endif %}
+                      <div>
+                        <div class="fw-bold">{{ current_user.nom }} {{ current_user.prenom }}</div>
+                        <small class="text-muted">{{ current_user.employe.poste if current_user.employe else 'Poste non défini' }}</small>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="card bg-light">
+                  <div class="card-body">
+                    <h6 class="card-title">Soldes disponibles</h6>
+                    <div id="soldesDisponibles">
+                      <!-- Chargé dynamiquement -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Détails de la demande -->
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                {{ form.type_conge_id.label(class="form-label required") }}
+                {{ form.type_conge_id(class="form-select", required=True, onchange="chargerSoldeType()") }}
+                <div class="invalid-feedback">Veuillez sélectionner un type de congé.</div>
+              </div>
+              <div class="col-md-6 mb-3">
+                {{ form.remplacant_id.label(class="form-label") }}
+                {{ form.remplacant_id(class="form-select") }}
+                <small class="form-text text-muted">Optionnel: Personne qui vous remplacera</small>
+              </div>
+            </div>
+            
+            <div class="row">
+              <div class="col-md-4 mb-3">
+                {{ form.date_debut.label(class="form-label required") }}
+                {{ form.date_debut(class="form-control", required=True, onchange="calculerDureeDetaille()") }}
+                <div class="invalid-feedback">Veuillez sélectionner une date de début.</div>
+              </div>
+              <div class="col-md-4 mb-3">
+                {{ form.date_fin.label(class="form-label required") }}
+                {{ form.date_fin(class="form-control", required=True, onchange="calculerDureeDetaille()") }}
+                <div class="invalid-feedback">Veuillez sélectionner une date de fin.</div>
+              </div>
+              <div class="col-md-4 mb-3">
+                <label class="form-label">Durée calculée</label>
+                <div class="form-control-plaintext fw-bold" id="dureeDetaillee">
+                  <div id="nombreJoursTotal">-</div>
+                  <small class="text-muted" id="nombreJoursOuvrables">-</small>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Aperçu du calendrier -->
+            <div class="row mb-3">
+              <div class="col-12">
+                <label class="form-label">Aperçu de la période</label>
+                <div class="card">
+                  <div class="card-body p-2">
+                    <div id="apercuCalendrier" class="text-center text-muted">
+                      Sélectionnez les dates pour voir l'aperçu
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              {{ form.motif.label(class="form-label required") }}
+              {{ form.motif(class="form-control", rows="4", required=True, placeholder="Précisez le motif de votre demande de congé...") }}
+              <div class="invalid-feedback">Veuillez préciser le motif de votre demande.</div>
+            </div>
+            
+            <div class="mb-3">
+              {{ form.justificatif.label(class="form-label") }}
+              {{ form.justificatif(class="form-control") }}
+              <small class="form-text text-muted">
+                Formats acceptés: PDF, JPG, PNG, DOC, DOCX (max 5MB)<br>
+                Requis pour certains types de congés (maladie, maternité, etc.)
+              </small>
+              {% if conge and conge.justificatif %}
+              <div class="mt-2">
+                <i class="bi bi-paperclip"></i>
+                <a href="{{ url_for('static', filename='uploads/conges/' ~ conge.justificatif) }}" target="_blank">
+                  Voir le justificatif actuel
+                </a>
+              </div>
+              {% endif %}
+            </div>
+            
+            <!-- Vérifications automatiques -->
+            <div class="alert alert-info d-none" id="alerteVerifications">
+              <h6><i class="bi bi-info-circle"></i> Vérifications</h6>
+              <ul id="listeVerifications" class="mb-0">
+                <!-- Généré dynamiquement -->
+              </ul>
+            </div>
+            
+            <!-- Conflits détectés -->
+            <div class="alert alert-warning d-none" id="alerteConflits">
+              <h6><i class="bi bi-exclamation-triangle"></i> Conflits détectés</h6>
+              <ul id="listeConflits" class="mb-0">
+                <!-- Généré dynamiquement -->
+              </ul>
+            </div>
+          </div>
+          
+          <div class="card-footer">
+            <div class="d-flex justify-content-between">
+              <a href="{{ url_for('conges_temps.index') }}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Retour
+              </a>
+              <div>
+                {% if conge and conge.statut == 'en_attente' %}
+                <button type="submit" name="action" value="save" class="btn btn-warning me-2">
+                  <i class="bi bi-save"></i> Modifier la demande
+                </button>
+                {% endif %}
+                <button type="submit" name="action" value="submit" class="btn btn-primary">
+                  <i class="bi bi-send"></i>
+                  {% if conge %}Mettre à jour{% else %}Envoyer la demande{% endif %}
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  chargerSoldesDisponibles();
+  calculerDureeDetaille();
+  
+  // Validation Bootstrap
+  const forms = document.querySelectorAll('.needs-validation');
+  Array.prototype.slice.call(forms).forEach(function (form) {
+    form.addEventListener('submit', function (event) {
+      if (!form.checkValidity()) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      form.classList.add('was-validated');
+    }, false);
+  });
+});
+
+function chargerSoldesDisponibles() {
+  {% if current_user.employe %}
+  fetch(`{{ url_for('conges_temps.api_soldes_employe', employe_id=current_user.employe.id) }}`)
+    .then(response => response.json())
+    .then(soldes => {
+      const container = document.getElementById('soldesDisponibles');
+      container.innerHTML = '';
+      
+      if (soldes.length === 0) {
+        container.innerHTML = '<small class="text-muted">Aucun solde configuré</small>';
+        return;
+      }
+      
+      soldes.forEach(solde => {
+        const badge = document.createElement('div');
+        badge.className = `badge me-2 mb-1 ${solde.solde_actuel < 5 ? 'bg-warning text-dark' : 'bg-success'}`;
+        badge.textContent = `${solde.type_nom}: ${solde.solde_actuel}j`;
+        container.appendChild(badge);
+      });
+    });
+  {% endif %}
+}
+
+function chargerSoldeType() {
+  const typeId = document.getElementById('type_conge_id').value;
+  if (!typeId) return;
+  
+  {% if current_user.employe %}
+  fetch(`{{ url_for('conges_temps.api_solde_type', employe_id=current_user.employe.id, type_id=0) }}`.replace('0', typeId))
+    .then(response => response.json())
+    .then(data => {
+      // Mettre en évidence le solde pour ce type
+      const soldes = document.querySelectorAll('#soldesDisponibles .badge');
+      soldes.forEach(badge => {
+        badge.classList.remove('border', 'border-primary');
+        if (badge.textContent.includes(data.type_nom)) {
+          badge.classList.add('border', 'border-primary');
+        }
+      });
+    });
+  {% endif %}
+}
+
+function calculerDureeDetaille() {
+  const dateDebut = document.getElementById('date_debut').value;
+  const dateFin = document.getElementById('date_fin').value;
+  
+  if (!dateDebut || !dateFin) {
+    document.getElementById('nombreJoursTotal').textContent = '-';
+    document.getElementById('nombreJoursOuvrables').textContent = '-';
+    document.getElementById('apercuCalendrier').innerHTML = 'Sélectionnez les dates pour voir l\'aperçu';
+    return;
+  }
+  
+  const debut = new Date(dateDebut);
+  const fin = new Date(dateFin);
+  
+  if (fin < debut) {
+    document.getElementById('nombreJoursTotal').textContent = 'Dates invalides';
+    document.getElementById('nombreJoursOuvrables').textContent = '';
+    return;
+  }
+  
+  // Calcul simple
+  const diffTime = Math.abs(fin - debut);
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+  
+  document.getElementById('nombreJoursTotal').textContent = `${diffDays} jour(s) total`;
+  
+  // Calcul détaillé via API
+  fetch(`{{ url_for('conges_temps.api_calculer_duree') }}?date_debut=${dateDebut}&date_fin=${dateFin}`)
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById('nombreJoursOuvrables').textContent = `${data.jours_ouvrables} jour(s) ouvrables`;
+      
+      // Générer aperçu
+      genererApercuCalendrier(dateDebut, dateFin, data.details);
+      
+      // Vérifications
+      verifierContraintes(dateDebut, dateFin, data);
+    })
+    .catch(() => {
+      document.getElementById('nombreJoursOuvrables').textContent = 'Calcul en cours...';
+    });
+}
+
+function genererApercuCalendrier(dateDebut, dateFin, details) {
+  const container = document.getElementById('apercuCalendrier');
+  container.innerHTML = '';
+  
+  const debut = new Date(dateDebut);
+  const fin = new Date(dateFin);
+  const dateActuelle = new Date(debut);
+  
+  const calendrier = document.createElement('div');
+  calendrier.className = 'd-flex flex-wrap gap-1 justify-content-center';
+  
+  while (dateActuelle <= fin) {
+    const jour = document.createElement('div');
+    jour.className = 'calendar-preview-day';
+    
+    const dateStr = dateActuelle.toISOString().split('T')[0];
+    const estWeekend = dateActuelle.getDay() === 0 || dateActuelle.getDay() === 6;
+    const estFerie = details && details.jours_feries && details.jours_feries.includes(dateStr);
+    
+    if (estWeekend) {
+      jour.className += ' weekend';
+      jour.style.backgroundColor = '#f8f9fa';
+      jour.style.color = '#6c757d';
+    } else if (estFerie) {
+      jour.className += ' ferie';
+      jour.style.backgroundColor = '#fff3cd';
+      jour.style.color = '#856404';
+    } else {
+      jour.style.backgroundColor = '#d1ecf1';
+      jour.style.color = '#0c5460';
+    }
+    
+    jour.style.padding = '4px 8px';
+    jour.style.border = '1px solid #ccc';
+    jour.style.borderRadius = '3px';
+    jour.style.fontSize = '0.8rem';
+    jour.textContent = dateActuelle.getDate();
+    jour.title = dateActuelle.toLocaleDateString('fr-FR', { 
+      weekday: 'long', 
+      day: 'numeric', 
+      month: 'long' 
+    });
+    
+    calendrier.appendChild(jour);
+    dateActuelle.setDate(dateActuelle.getDate() + 1);
+  }
+  
+  container.appendChild(calendrier);
+}
+
+function verifierContraintes(dateDebut, dateFin, data) {
+  const alerteVerifications = document.getElementById('alerteVerifications');
+  const alerteConflits = document.getElementById('alerteConflits');
+  const listeVerifications = document.getElementById('listeVerifications');
+  const listeConflits = document.getElementById('listeConflits');
+  
+  listeVerifications.innerHTML = '';
+  listeConflits.innerHTML = '';
+  alerteVerifications.classList.add('d-none');
+  alerteConflits.classList.add('d-none');
+  
+  // Vérifications automatiques
+  const verifications = [];
+  const conflits = [];
+  
+  if (data.jours_ouvrables > 0) {
+    verifications.push(`${data.jours_ouvrables} jour(s) ouvrables seront décomptés`);
+  }
+  
+  if (data.weekends > 0) {
+    verifications.push(`${data.weekends} weekend(s) inclus (non décomptés)`);
+  }
+  
+  if (data.jours_feries > 0) {
+    verifications.push(`${data.jours_feries} jour(s) férié(s) inclus (non décomptés)`);
+  }
+  
+  // Vérifier les conflits (à implémenter côté serveur)
+  fetch(`{{ url_for('conges_temps.api_verifier_conflits') }}?date_debut=${dateDebut}&date_fin=${dateFin}`)
+    .then(response => response.json())
+    .then(conflitsData => {
+      if (conflitsData.conflits && conflitsData.conflits.length > 0) {
+        conflitsData.conflits.forEach(conflit => {
+          conflits.push(conflit.message);
+        });
+      }
+      
+      // Afficher les résultats
+      if (verifications.length > 0) {
+        verifications.forEach(verif => {
+          const li = document.createElement('li');
+          li.textContent = verif;
+          listeVerifications.appendChild(li);
+        });
+        alerteVerifications.classList.remove('d-none');
+      }
+      
+      if (conflits.length > 0) {
+        conflits.forEach(conflit => {
+          const li = document.createElement('li');
+          li.textContent = conflit;
+          listeConflits.appendChild(li);
+        });
+        alerteConflits.classList.remove('d-none');
+      }
+    });
+}
+</script>
+
+<style>
+.required::after {
+  content: " *";
+  color: red;
+}
+
+.calendar-preview-day {
+  transition: all 0.2s;
+}
+
+.calendar-preview-day:hover {
+  transform: scale(1.1);
+  z-index: 10;
+}
+</style>

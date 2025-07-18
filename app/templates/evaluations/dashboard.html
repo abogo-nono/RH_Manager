@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}Tableau de bord - Évaluations{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête du dashboard -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-chart-line me-2"></i>Tableau de bord - Évaluations</h2>
+            <p class="text-muted">Vue d'ensemble des évaluations de performance</p>
+        </div>
+        <div>
+            <a href="{{ url_for('evaluation.create_evaluation') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Nouvelle Évaluation
+            </a>
+            <a href="{{ url_for('evaluation.rapports') }}" class="btn btn-success">
+                <i class="fas fa-file-excel me-2"></i>Rapports
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistiques principales -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <div class="text-primary">
+                        <i class="fas fa-chart-bar fa-2x mb-2"></i>
+                    </div>
+                    <h3 class="text-primary">{{ total_evaluations }}</h3>
+                    <p class="card-text text-muted">Total Évaluations</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <div class="text-info">
+                        <i class="fas fa-calendar-year fa-2x mb-2"></i>
+                    </div>
+                    <h3 class="text-info">{{ evaluations_annee }}</h3>
+                    <p class="card-text text-muted">Cette Année</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <div class="text-warning">
+                        <i class="fas fa-clock fa-2x mb-2"></i>
+                    </div>
+                    <h3 class="text-warning">{{ evaluations_en_attente }}</h3>
+                    <p class="card-text text-muted">En Attente</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <div class="text-success">
+                        <i class="fas fa-star fa-2x mb-2"></i>
+                    </div>
+                    <h3 class="text-success">{{ avg_score }}%</h3>
+                    <p class="card-text text-muted">Score Moyen</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Graphiques et statistiques -->
+        <div class="col-md-8">
+            <!-- Répartition par type d'évaluation -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-pie-chart me-2"></i>Répartition par Type d'Évaluation</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="chartTypes" height="100"></canvas>
+                </div>
+            </div>
+
+            <!-- Répartition par note finale -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-medal me-2"></i>Répartition par Note Finale</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="chartNotes" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel d'informations -->
+        <div class="col-md-4">
+            <!-- Évaluations récentes -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-history me-2"></i>Évaluations Récentes</h5>
+                </div>
+                <div class="card-body">
+                    {% if evaluations_recentes %}
+                        {% for evaluation in evaluations_recentes %}
+                            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                <div>
+                                    <strong>{{ evaluation.employe.nom }} {{ evaluation.employe.prenom or '' }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ evaluation.periode }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-primary">{{ evaluation.score_global }}%</span>
+                                    <br>
+                                    <small class="text-muted">{{ evaluation.date_evaluation.strftime('%d/%m/%Y') }}</small>
+                                </div>
+                            </div>
+                        {% endfor %}
+                        <div class="text-center">
+                            <a href="{{ url_for('evaluation.list_evaluations') }}" class="btn btn-sm btn-outline-primary">
+                                Voir toutes les évaluations
+                            </a>
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center">Aucune évaluation récente</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Actions rapides -->
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-lightning-bolt me-2"></i>Actions Rapides</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('evaluation.create_evaluation') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Nouvelle Évaluation
+                        </a>
+                        <a href="{{ url_for('evaluation.list_objectifs') }}" class="btn btn-info">
+                            <i class="fas fa-target me-2"></i>Gérer les Objectifs
+                        </a>
+                        <a href="{{ url_for('evaluation.list_templates') }}" class="btn btn-secondary">
+                            <i class="fas fa-template me-2"></i>Modèles d'Évaluation
+                        </a>
+                        <a href="{{ url_for('evaluation.rapports') }}" class="btn btn-success">
+                            <i class="fas fa-chart-bar me-2"></i>Générer un Rapport
+                        </a>
+                    </div>
+                    
+                    {% if employes_a_evaluer > 0 %}
+                        <div class="alert alert-warning mt-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>{{ employes_a_evaluer }}</strong> employé(s) n'ont pas encore été évalué(s) cette année.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Script pour les graphiques -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Données pour les graphiques
+    const typesData = {{ repartition_types | tojson }};
+    const notesData = {{ repartition_notes | tojson }};
+
+    // Graphique des types d'évaluation
+    const ctxTypes = document.getElementById('chartTypes').getContext('2d');
+    new Chart(ctxTypes, {
+        type: 'doughnut',
+        data: {
+            labels: typesData.map(item => item[0]),
+            datasets: [{
+                data: typesData.map(item => item[1]),
+                backgroundColor: [
+                    '#FF6384',
+                    '#36A2EB',
+                    '#FFCE56',
+                    '#4BC0C0',
+                    '#9966FF'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Graphique des notes finales
+    const ctxNotes = document.getElementById('chartNotes').getContext('2d');
+    new Chart(ctxNotes, {
+        type: 'bar',
+        data: {
+            labels: notesData.map(item => item[0]),
+            datasets: [{
+                label: 'Nombre d\'évaluations',
+                data: notesData.map(item => item[1]),
+                backgroundColor: [
+                    '#28a745',  // Excellent
+                    '#17a2b8',  // Très Bien
+                    '#ffc107',  // Bien
+                    '#fd7e14',  // Satisfaisant
+                    '#dc3545'   // Insuffisant
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

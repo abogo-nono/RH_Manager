@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+
+{% block title %}Types de congés - RH Manager{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3>Gestion des types de congés</h3>
+            <p class="text-muted">Configuration des différents types de congés disponibles</p>
+        </div>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalTypeConge">
+            <i class="bi bi-plus-circle"></i> Nouveau type
+        </button>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center border-primary">
+                <div class="card-body">
+                    <h5 class="text-primary">{{ stats.total_types or 0 }}</h5>
+                    <small class="text-muted">Types configurés</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-success">
+                <div class="card-body">
+                    <h5 class="text-success">{{ stats.types_actifs or 0 }}</h5>
+                    <small class="text-muted">Types actifs</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-warning">
+                <div class="card-body">
+                    <h5 class="text-warning">{{ stats.types_avec_solde or 0 }}</h5>
+                    <small class="text-muted">Avec limite de jours</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-info">
+                <div class="card-body">
+                    <h5 class="text-info">{{ stats.demandes_en_cours or 0 }}</h5>
+                    <small class="text-muted">Demandes en cours</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste des types de congés -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Types de congés configurés</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Type</th>
+                            <th>Code</th>
+                            <th>Couleur</th>
+                            <th>Jours max/an</th>
+                            <th>Justificatif</th>
+                            <th>Approbation</th>
+                            <th>Statut</th>
+                            <th>Utilisation</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for type_conge in types_conges %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <span class="badge me-2" style="background-color: {{ type_conge.couleur }}; width: 12px; height: 12px;"></span>
+                                    <div>
+                                        <div class="fw-bold">{{ type_conge.nom }}</div>
+                                        {% if type_conge.description %}
+                                        <small class="text-muted">{{ type_conge.description[:50] }}{% if type_conge.description|length > 50 %}...{% endif %}</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <code class="bg-light p-1 rounded">{{ type_conge.code }}</code>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="color-preview me-2" style="background-color: {{ type_conge.couleur }}; width: 20px; height: 20px; border-radius: 3px; border: 1px solid #ccc;"></div>
+                                    <small>{{ type_conge.couleur }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                {% if type_conge.jours_max_par_an %}
+                                <span class="fw-bold">{{ type_conge.jours_max_par_an }}</span> jours
+                                {% else %}
+                                <span class="text-muted">Illimité</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if type_conge.justificatif_requis %}
+                                <span class="badge bg-warning text-dark">Requis</span>
+                                {% else %}
+                                <span class="badge bg-light text-dark">Optionnel</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if type_conge.approbation_requise %}
+                                <span class="badge bg-info">Requise</span>
+                                {% else %}
+                                <span class="badge bg-success">Automatique</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if type_conge.actif %}
+                                <span class="badge bg-success">Actif</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Inactif</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="text-center">
+                                    <div class="fw-bold">{{ type_conge.usage_count or 0 }}</div>
+                                    <small class="text-muted">demandes</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary" onclick="modifierTypeConge({{ type_conge.id }})" title="Modifier">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-outline-info" onclick="voirStatsType({{ type_conge.id }})" title="Statistiques">
+                                        <i class="bi bi-graph-up"></i>
+                                    </button>
+                                    {% if type_conge.usage_count == 0 %}
+                                    <button class="btn btn-outline-danger" onclick="supprimerTypeConge({{ type_conge.id }})" title="Supprimer">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Type de congé -->
+<div class="modal fade" id="modalTypeConge" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <form class="modal-content" method="POST" action="{{ url_for('conges_temps.gerer_type_conge') }}">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTypeCongeTitle">Nouveau type de congé</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {{ form.hidden_tag() }}
+                <input type="hidden" id="typeCongeId" name="id">
+                
+                <div class="row">
+                    <div class="col-md-8 mb-3">
+                        {{ form.nom.label(class="form-label required") }}
+                        {{ form.nom(class="form-control", required=True) }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        {{ form.code.label(class="form-label required") }}
+                        {{ form.code(class="form-control", required=True, style="text-transform: uppercase;") }}
+                        <small class="form-text text-muted">Code unique (ex: CA, MAL, MAT)</small>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    {{ form.description.label(class="form-label") }}
+                    {{ form.description(class="form-control", rows="3") }}
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ form.couleur.label(class="form-label") }}
+                        <div class="input-group">
+                            {{ form.couleur(class="form-control", type="color") }}
+                            <span class="input-group-text" id="couleurPreview" style="background-color: #007bff; width: 40px;"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {{ form.jours_max_par_an.label(class="form-label") }}
+                        {{ form.jours_max_par_an(class="form-control", type="number", min="0") }}
+                        <small class="form-text text-muted">Laisser vide pour illimité</small>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <div class="form-check">
+                            {{ form.justificatif_requis(class="form-check-input") }}
+                            {{ form.justificatif_requis.label(class="form-check-label") }}
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="form-check">
+                            {{ form.approbation_requise(class="form-check-input") }}
+                            {{ form.approbation_requise.label(class="form-check-label") }}
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="form-check">
+                            {{ form.actif(class="form-check-input") }}
+                            {{ form.actif.label(class="form-check-label") }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ form.delai_demande_jours.label(class="form-label") }}
+                        {{ form.delai_demande_jours(class="form-control", type="number", min="0") }}
+                        <small class="form-text text-muted">Délai minimum de demande en jours</small>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {{ form.duree_max_consecutive.label(class="form-label") }}
+                        {{ form.duree_max_consecutive(class="form-control", type="number", min="1") }}
+                        <small class="form-text text-muted">Durée maximum consécutive</small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save"></i> Enregistrer
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Statistiques -->
+<div class="modal fade" id="modalStatsType" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Statistiques du type de congé</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="statsTypeContent">
+                <!-- Contenu chargé dynamiquement -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Mise à jour de la prévisualisation de couleur
+    const couleurInput = document.getElementById('couleur');
+    const couleurPreview = document.getElementById('couleurPreview');
+    
+    if (couleurInput && couleurPreview) {
+        couleurInput.addEventListener('input', function() {
+            couleurPreview.style.backgroundColor = this.value;
+        });
+    }
+    
+    // Validation du code (majuscules, sans espaces)
+    const codeInput = document.getElementById('code');
+    if (codeInput) {
+        codeInput.addEventListener('input', function() {
+            this.value = this.value.replace(/[^A-Z0-9]/g, '').substring(0, 5);
+        });
+    }
+});
+
+function modifierTypeConge(id) {
+    fetch(`{{ url_for('conges_temps.get_type_conge_data', id=0) }}`.replace('0', id))
+        .then(response => response.json())
+        .then(data => {
+            // Pré-remplir le formulaire
+            document.getElementById('typeCongeId').value = data.id;
+            document.getElementById('nom').value = data.nom;
+            document.getElementById('code').value = data.code;
+            document.getElementById('description').value = data.description || '';
+            document.getElementById('couleur').value = data.couleur;
+            document.getElementById('jours_max_par_an').value = data.jours_max_par_an || '';
+            document.getElementById('justificatif_requis').checked = data.justificatif_requis;
+            document.getElementById('approbation_requise').checked = data.approbation_requise;
+            document.getElementById('actif').checked = data.actif;
+            document.getElementById('delai_demande_jours').value = data.delai_demande_jours || '';
+            document.getElementById('duree_max_consecutive').value = data.duree_max_consecutive || '';
+            
+            // Mettre à jour la prévisualisation
+            document.getElementById('couleurPreview').style.backgroundColor = data.couleur;
+            
+            // Changer le titre du modal
+            document.getElementById('modalTypeCongeTitle').textContent = 'Modifier le type de congé';
+            
+            // Afficher le modal
+            new bootstrap.Modal(document.getElementById('modalTypeConge')).show();
+        });
+}
+
+function voirStatsType(id) {
+    fetch(`{{ url_for('conges_temps.stats_type_conge', id=0) }}`.replace('0', id))
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('statsTypeContent').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('modalStatsType')).show();
+        });
+}
+
+function supprimerTypeConge(id) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer ce type de congé ? Cette action est irréversible.')) {
+        fetch(`{{ url_for('conges_temps.supprimer_type_conge', id=0) }}`.replace('0', id), {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        }).then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Erreur lors de la suppression');
+            }
+        });
+    }
+}
+
+// Réinitialiser le modal à la fermeture
+document.getElementById('modalTypeConge').addEventListener('hidden.bs.modal', function() {
+    this.querySelector('form').reset();
+    document.getElementById('typeCongeId').value = '';
+    document.getElementById('modalTypeCongeTitle').textContent = 'Nouveau type de congé';
+    document.getElementById('couleurPreview').style.backgroundColor = '#007bff';
+});
+</script>
+
+<style>
+.required::after {
+    content: " *";
+    color: red;
+}
+
+.color-preview {
+    cursor: pointer;
+}
+
+.color-preview:hover {
+    opacity: 0.8;
+}
+</style>
+
+{% endblock %}

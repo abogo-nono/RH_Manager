@@ -1,0 +1,432 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- En-tête -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-0"><i class="bi bi-stopwatch text-primary"></i> Interface de Pointage</h1>
+      <p class="text-muted mb-0">Enregistrement des heures d'arrivée et de départ</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('conges_temps.presences_dashboard') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Retour au dashboard
+      </a>
+      <a href="{{ url_for('conges_temps.gestion_heures') }}" class="btn btn-primary">
+        <i class="bi bi-list-check"></i> Gérer les heures
+      </a>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Formulaire de pointage -->
+    <div class="col-md-6 mb-4">
+      <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0"><i class="bi bi-plus-circle"></i> Nouveau pointage</h5>
+        </div>
+        <div class="card-body">
+          <form method="POST" id="formPointage">
+            {{ form.hidden_tag() }}
+            
+            <div class="mb-3">
+              {{ form.employe_id.label(class="form-label required") }}
+              {{ form.employe_id(class="form-select") }}
+              <div class="invalid-feedback">Veuillez sélectionner un employé.</div>
+            </div>
+            
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  {{ form.date_pointage.label(class="form-label required") }}
+                  {{ form.date_pointage(class="form-control") }}
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  {{ form.heure_pointage.label(class="form-label required") }}
+                  {{ form.heure_pointage(class="form-control") }}
+                  <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="setCurrentTime()">
+                    <i class="bi bi-clock"></i> Maintenant
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              {{ form.type_pointage.label(class="form-label required") }}
+              <div class="btn-group w-100" role="group">
+                <input type="radio" class="btn-check" name="type_pointage" id="entree" value="entree" checked>
+                <label class="btn btn-outline-success" for="entree">
+                  <i class="bi bi-box-arrow-in-right"></i> Entrée
+                </label>
+                
+                <input type="radio" class="btn-check" name="type_pointage" id="sortie" value="sortie">
+                <label class="btn btn-outline-danger" for="sortie">
+                  <i class="bi bi-box-arrow-left"></i> Sortie
+                </label>
+                
+                <input type="radio" class="btn-check" name="type_pointage" id="pause_debut" value="pause_debut">
+                <label class="btn btn-outline-warning" for="pause_debut">
+                  <i class="bi bi-pause-circle"></i> Début pause
+                </label>
+                
+                <input type="radio" class="btn-check" name="type_pointage" id="pause_fin" value="pause_fin">
+                <label class="btn btn-outline-info" for="pause_fin">
+                  <i class="bi bi-play-circle"></i> Fin pause
+                </label>
+              </div>
+            </div>
+            
+            <!-- Géolocalisation (optionnel) -->
+            <div class="mb-3">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="activerGPS" onchange="toggleGPS()">
+                <label class="form-check-label" for="activerGPS">
+                  <i class="bi bi-geo-alt"></i> Enregistrer la localisation
+                </label>
+              </div>
+              
+              <div id="gpsFields" class="mt-2" style="display: none;">
+                <div class="row">
+                  <div class="col-md-6">
+                    {{ form.latitude.label(class="form-label") }}
+                    {{ form.latitude(class="form-control", readonly=True) }}
+                  </div>
+                  <div class="col-md-6">
+                    {{ form.longitude.label(class="form-label") }}
+                    {{ form.longitude(class="form-control", readonly=True) }}
+                  </div>
+                </div>
+                <div class="mt-2">
+                  {{ form.adresse.label(class="form-label") }}
+                  {{ form.adresse(class="form-control", readonly=True) }}
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="getLocation()">
+                  <i class="bi bi-crosshair"></i> Obtenir ma position
+                </button>
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              {{ form.commentaire.label(class="form-label") }}
+              {{ form.commentaire(class="form-control", placeholder="Commentaire optionnel...") }}
+            </div>
+            
+            <div class="d-grid">
+              {{ form.submit(class="btn btn-success btn-lg") }}
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pointages récents -->
+    <div class="col-md-6 mb-4">
+      <div class="card shadow">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0"><i class="bi bi-list-ul"></i> Pointages récents</h5>
+          <span class="badge bg-secondary">{{ pointages_recents|length }} enregistrements</span>
+        </div>
+        <div class="card-body p-0" style="max-height: 500px; overflow-y: auto;">
+          {% for pointage in pointages_recents %}
+          <div class="d-flex align-items-center p-3 border-bottom">
+            <div class="me-3">
+              {% if pointage.type_pointage == 'entree' %}
+                <i class="bi bi-box-arrow-in-right text-success fa-lg"></i>
+              {% elif pointage.type_pointage == 'sortie' %}
+                <i class="bi bi-box-arrow-left text-danger fa-lg"></i>
+              {% elif pointage.type_pointage == 'pause_debut' %}
+                <i class="bi bi-pause-circle text-warning fa-lg"></i>
+              {% elif pointage.type_pointage == 'pause_fin' %}
+                <i class="bi bi-play-circle text-info fa-lg"></i>
+              {% endif %}
+            </div>
+            <div class="flex-grow-1">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <h6 class="mb-1">{{ pointage.employe.nom }} {{ pointage.employe.prenom }}</h6>
+                  <p class="mb-1 text-muted small">
+                    {% if pointage.type_pointage == 'entree' %}
+                      Arrivée
+                    {% elif pointage.type_pointage == 'sortie' %}
+                      Départ
+                    {% elif pointage.type_pointage == 'pause_debut' %}
+                      Début de pause
+                    {% elif pointage.type_pointage == 'pause_fin' %}
+                      Fin de pause
+                    {% endif %}
+                  </p>
+                  <small class="text-muted">
+                    {{ pointage.date_pointage.strftime('%d/%m/%Y') }} à {{ pointage.heure_pointage.strftime('%H:%M') }}
+                  </small>
+                </div>
+                <div class="text-end">
+                  <small class="text-muted d-block">{{ pointage.methode|title }}</small>
+                  {% if pointage.methode == 'manuel' %}
+                    <i class="bi bi-pencil-square text-primary"></i>
+                  {% elif pointage.methode == 'qr_code' %}
+                    <i class="bi bi-qr-code text-success"></i>
+                  {% elif pointage.methode == 'gps' %}
+                    <i class="bi bi-geo-alt text-info"></i>
+                  {% endif %}
+                </div>
+              </div>
+              {% if pointage.commentaire %}
+              <small class="text-muted">{{ pointage.commentaire }}</small>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Options de pointage alternatives -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card shadow">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-gear"></i> Méthodes de pointage alternatives</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-3 mb-3">
+              <div class="card border-primary h-100">
+                <div class="card-body text-center">
+                  <i class="bi bi-qr-code display-4 text-primary mb-3"></i>
+                  <h6>QR Code</h6>
+                  <p class="text-muted small">Pointage via code QR</p>
+                  <button class="btn btn-outline-primary btn-sm" onclick="activerQRCode()">
+                    <i class="bi bi-camera"></i> Scanner
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-3 mb-3">
+              <div class="card border-success h-100">
+                <div class="card-body text-center">
+                  <i class="bi bi-credit-card display-4 text-success mb-3"></i>
+                  <h6>Badge RFID</h6>
+                  <p class="text-muted small">Pointage par badge</p>
+                  <button class="btn btn-outline-success btn-sm" onclick="activerBadge()">
+                    <i class="bi bi-wifi"></i> Activer
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-3 mb-3">
+              <div class="card border-info h-100">
+                <div class="card-body text-center">
+                  <i class="bi bi-geo-alt display-4 text-info mb-3"></i>
+                  <h6>Géolocalisation</h6>
+                  <p class="text-muted small">Pointage par GPS</p>
+                  <button class="btn btn-outline-info btn-sm" onclick="pointageGPS()">
+                    <i class="bi bi-crosshair"></i> Localiser
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-3 mb-3">
+              <div class="card border-warning h-100">
+                <div class="card-body text-center">
+                  <i class="bi bi-fingerprint display-4 text-warning mb-3"></i>
+                  <h6>Biométrie</h6>
+                  <p class="text-muted small">Empreinte digitale</p>
+                  <button class="btn btn-outline-warning btn-sm" disabled>
+                    <i class="bi bi-lock"></i> Bientôt
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal QR Code -->
+<div class="modal fade" id="modalQRCode" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-qr-code"></i> Pointage par QR Code</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center">
+        <div id="qr-reader" style="width: 100%;"></div>
+        <p class="mt-3 text-muted">Placez le QR code devant la caméra</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Définir l'heure actuelle
+function setCurrentTime() {
+  const now = new Date();
+  const timeString = now.toTimeString().substr(0, 5);
+  document.getElementById('heure_pointage').value = timeString;
+}
+
+// Activer/désactiver les champs GPS
+function toggleGPS() {
+  const gpsFields = document.getElementById('gpsFields');
+  const checkbox = document.getElementById('activerGPS');
+  gpsFields.style.display = checkbox.checked ? 'block' : 'none';
+}
+
+// Obtenir la géolocalisation
+function getLocation() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(showPosition, showError);
+  } else {
+    alert("La géolocalisation n'est pas supportée par ce navigateur.");
+  }
+}
+
+function showPosition(position) {
+  document.getElementById('latitude').value = position.coords.latitude;
+  document.getElementById('longitude').value = position.coords.longitude;
+  
+  // Géocodage inverse pour obtenir l'adresse
+  fetch(`https://api.opencagedata.com/geocode/v1/json?q=${position.coords.latitude}+${position.coords.longitude}&key=YOUR_API_KEY`)
+    .then(response => response.json())
+    .then(data => {
+      if (data.results && data.results.length > 0) {
+        document.getElementById('adresse').value = data.results[0].formatted;
+      }
+    })
+    .catch(error => {
+      console.log('Erreur géocodage:', error);
+      document.getElementById('adresse').value = `${position.coords.latitude}, ${position.coords.longitude}`;
+    });
+}
+
+function showError(error) {
+  switch(error.code) {
+    case error.PERMISSION_DENIED:
+      alert("Utilisateur a refusé la demande de géolocalisation.");
+      break;
+    case error.POSITION_UNAVAILABLE:
+      alert("Information de localisation indisponible.");
+      break;
+    case error.TIMEOUT:
+      alert("La demande de localisation a expiré.");
+      break;
+    case error.UNKNOWN_ERROR:
+      alert("Une erreur inconnue est survenue.");
+      break;
+  }
+}
+
+// Activation du QR Code
+function activerQRCode() {
+  const modal = new bootstrap.Modal(document.getElementById('modalQRCode'));
+  modal.show();
+  
+  // Initialiser le scanner QR (nécessite une librairie comme html5-qrcode)
+  // html5QrcodeScanner = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: 250 });
+  // html5QrcodeScanner.render(onScanSuccess);
+}
+
+function onScanSuccess(decodedText, decodedResult) {
+  // Traiter le résultat du scan QR
+  console.log(`Code QR scanné: ${decodedText}`);
+  
+  // Fermer le modal et traiter le pointage
+  bootstrap.Modal.getInstance(document.getElementById('modalQRCode')).hide();
+  
+  // Envoyer le pointage automatiquement
+  // processQRPointage(decodedText);
+}
+
+// Badge RFID
+function activerBadge() {
+  alert('Fonctionnalité badge RFID en développement. Contactez l\'administrateur pour l\'activation.');
+}
+
+// Pointage GPS automatique
+function pointageGPS() {
+  if (confirm('Voulez-vous effectuer un pointage automatique basé sur votre localisation ?')) {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(function(position) {
+        // Envoyer le pointage avec géolocalisation
+        const data = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          methode: 'gps'
+        };
+        
+        // Ici vous pouvez envoyer via AJAX
+        console.log('Pointage GPS:', data);
+        alert('Pointage GPS enregistré (fonctionnalité en développement)');
+      });
+    }
+  }
+}
+
+// Validation du formulaire
+document.getElementById('formPointage').addEventListener('submit', function(e) {
+  const employeSelect = document.getElementById('employe_id');
+  if (employeSelect.value === '' || employeSelect.value === '0') {
+    e.preventDefault();
+    employeSelect.classList.add('is-invalid');
+    employeSelect.focus();
+    return false;
+  }
+  employeSelect.classList.remove('is-invalid');
+});
+
+// Initialisation
+document.addEventListener('DOMContentLoaded', function() {
+  // Définir l'heure actuelle par défaut
+  setCurrentTime();
+  
+  // Mettre à jour l'heure toutes les 30 secondes
+  setInterval(function() {
+    if (document.getElementById('heure_pointage').value === '') {
+      setCurrentTime();
+    }
+  }, 30000);
+});
+</script>
+
+<style>
+.fa-lg {
+  font-size: 1.33333em;
+}
+
+.border-primary {
+  border-color: #007bff !important;
+}
+
+.border-success {
+  border-color: #28a745 !important;
+}
+
+.border-info {
+  border-color: #17a2b8 !important;
+}
+
+.border-warning {
+  border-color: #ffc107 !important;
+}
+
+.btn-check:checked + .btn {
+  background-color: var(--bs-primary);
+  border-color: var(--bs-primary);
+  color: white;
+}
+
+.required::after {
+  content: " *";
+  color: red;
+}
+</style>
+{% endblock %}

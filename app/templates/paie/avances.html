@@ -1,0 +1,522 @@
+{% extends "base.html" %}
+
+{% block title %}Gestion des Avances{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-hand-holding-usd me-2"></i>Gestion des Avances</h2>
+            <p class="text-muted">Suivi des avances sur salaire et remboursements</p>
+        </div>
+        <div>
+            <a href="{{ url_for('paie.dashboard') }}" class="btn btn-info">
+                <i class="fas fa-dashboard me-2"></i>Dashboard
+            </a>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nouvelleAvanceModal">
+                <i class="fas fa-plus me-2"></i>Nouvelle Avance
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <div class="text-primary">
+                        <i class="fas fa-hand-holding-usd fa-2x mb-2"></i>
+                    </div>
+                    <h3 class="text-primary">{{ total_avances }}</h3>
+                    <p class="card-text text-muted">Total Avances</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <div class="text-warning">
+                        <i class="fas fa-clock fa-2x mb-2"></i>
+                    </div>
+                    <h3 class="text-warning">{{ avances_en_cours }}</h3>
+                    <p class="card-text text-muted">En Cours</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <div class="text-info">
+                        <i class="fas fa-coins fa-2x mb-2"></i>
+                    </div>
+                    <h3 class="text-info">{{ format_currency(montant_total_avances) }}</h3>
+                    <p class="card-text text-muted">Montant Total</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <div class="text-success">
+                        <i class="fas fa-check-circle fa-2x mb-2"></i>
+                    </div>
+                    <h3 class="text-success">{{ format_currency(montant_rembourse) }}</h3>
+                    <p class="card-text text-muted">Remboursé</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-4">
+                    <label for="search" class="form-label">Recherche</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ search }}" placeholder="Nom, prénom, matricule...">
+                </div>
+                <div class="col-md-2">
+                    <label for="statut" class="form-label">Statut</label>
+                    <select class="form-select" id="statut" name="statut">
+                        <option value="">Tous</option>
+                        <option value="en_cours" {% if statut_filter == 'en_cours' %}selected{% endif %}>En cours</option>
+                        <option value="remboursee" {% if statut_filter == 'remboursee' %}selected{% endif %}>Remboursée</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="mois" class="form-label">Mois</label>
+                    <select class="form-select" id="mois" name="mois">
+                        <option value="">Tous</option>
+                        {% for i in range(1, 13) %}
+                            <option value="{{ i }}" {% if mois_filter == i %}selected{% endif %}>
+                                {{ ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'][i] }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="annee" class="form-label">Année</label>
+                    <select class="form-select" id="annee" name="annee">
+                        <option value="">Toutes</option>
+                        {% for annee in annees_disponibles %}
+                            <option value="{{ annee }}" {% if annee_filter == annee %}selected{% endif %}>{{ annee }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="submit" class="btn btn-primary d-block w-100">
+                        <i class="fas fa-search"></i> Rechercher
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Liste des avances -->
+    <div class="card">
+        <div class="card-header">
+            <h5><i class="fas fa-list me-2"></i>Liste des Avances</h5>
+        </div>
+        <div class="card-body">
+            {% if avances %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Employé</th>
+                                <th>Date Demande</th>
+                                <th>Montant</th>
+                                <th>Montant Restant</th>
+                                <th>Mode Remboursement</th>
+                                <th>Statut</th>
+                                <th>Progress</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for avance in avances %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if avance.employe.photo %}
+                                            <img src="{{ url_for('static', filename='uploads/employees/' + avance.employe.photo) }}" 
+                                                 alt="Photo" class="rounded-circle me-2" style="width: 40px; height: 40px;">
+                                        {% else %}
+                                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" 
+                                                 style="width: 40px; height: 40px;">
+                                                {{ avance.employe.prenom[0] }}{{ avance.employe.nom[0] }}
+                                            </div>
+                                        {% endif %}
+                                        <div>
+                                            <strong>{{ avance.employe.nom }} {{ avance.employe.prenom }}</strong><br>
+                                            <small class="text-muted">{{ avance.employe.matricule }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    {{ avance.date_avance.strftime('%d/%m/%Y') }}<br>
+                                    <small class="text-muted">{{ avance.date_avance.strftime('%H:%M') }}</small>
+                                </td>
+                                <td>
+                                    <strong>{{ format_currency(avance.montant) }}</strong>
+                                </td>
+                                <td>
+                                    {% if avance.montant_restant > 0 %}
+                                        <span class="text-warning">{{ format_currency(avance.montant_restant) }}</span>
+                                    {% else %}
+                                        <span class="text-success">{{ format_currency(avance.montant_restant) }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ avance.mode_remboursement }}</span><br>
+                                    <small class="text-muted">{{ avance.nombre_mensualites }} mensualités</small>
+                                </td>
+                                <td>
+                                    {% if avance.statut == 'remboursee' %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check me-1"></i>Remboursée
+                                        </span>
+                                    {% elif avance.statut == 'en_cours' %}
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-clock me-1"></i>En cours
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ avance.statut }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% set progress = ((avance.montant - avance.montant_restant) / avance.montant * 100) | round(1) %}
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar {% if progress == 100 %}bg-success{% else %}bg-warning{% endif %}" 
+                                             role="progressbar" style="width: {{ progress }}%">
+                                            {{ progress }}%
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" onclick="voirAvance({{ avance.id }})" title="Voir détails">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        {% if avance.statut == 'en_cours' %}
+                                        <button class="btn btn-outline-success" onclick="ajouterRemboursement({{ avance.id }})" title="Ajouter remboursement">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                        {% endif %}
+                                        <button class="btn btn-outline-info" onclick="historique({{ avance.id }})" title="Historique">
+                                            <i class="fas fa-history"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if pagination %}
+                <nav aria-label="Pagination" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if pagination.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('paie.avances', page=pagination.prev_num, **request.args) }}">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for page_num in pagination.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != pagination.page %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('paie.avances', page=page_num, **request.args) }}">
+                                            {{ page_num }}
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if pagination.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('paie.avances', page=pagination.next_num, **request.args) }}">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-hand-holding-usd fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Aucune avance trouvée</h5>
+                    <p class="text-muted">Aucune avance ne correspond à vos critères de recherche</p>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nouvelleAvanceModal">
+                        <i class="fas fa-plus me-2"></i>Créer une avance
+                    </button>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nouvelle Avance -->
+<div class="modal fade" id="nouvelleAvanceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nouvelle Avance sur Salaire</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('paie.creer_avance') }}">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Employé</label>
+                                <select class="form-select" name="employe_id" required>
+                                    <option value="">Sélectionner un employé</option>
+                                    {% for employe in employes %}
+                                        <option value="{{ employe.id }}">{{ employe.nom }} {{ employe.prenom }} ({{ employe.matricule }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Date de l'avance</label>
+                                <input type="date" class="form-control" name="date_avance" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Montant demandé</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" name="montant" step="0.01" required>
+                                    <span class="input-group-text">MAD</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Mode de remboursement</label>
+                                <select class="form-select" name="mode_remboursement" required>
+                                    <option value="">Sélectionner...</option>
+                                    <option value="mensuel">Mensuel</option>
+                                    <option value="unique">Remboursement unique</option>
+                                    <option value="bulletin">Sur plusieurs bulletins</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Nombre de mensualités</label>
+                                <input type="number" class="form-control" name="nombre_mensualites" min="1" max="12" value="1">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Date de début remboursement</label>
+                                <input type="date" class="form-control" name="date_debut_remboursement">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Motif de l'avance</label>
+                        <textarea class="form-control" name="motif" rows="3" placeholder="Raison de la demande d'avance..."></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Commentaires</label>
+                        <textarea class="form-control" name="commentaires" rows="2" placeholder="Commentaires additionnels..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Créer l'avance</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Détails Avance -->
+<div class="modal fade" id="detailsAvanceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Détails de l'Avance</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detailsAvanceContent">
+                <!-- Contenu chargé dynamiquement -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ajouter Remboursement -->
+<div class="modal fade" id="ajouterRemboursementModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ajouter un Remboursement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="remboursementForm">
+                <div class="modal-body">
+                    <input type="hidden" id="avance_id" name="avance_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Date du remboursement</label>
+                        <input type="date" class="form-control" name="date_remboursement" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Montant remboursé</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" name="montant_rembourse" step="0.01" required>
+                            <span class="input-group-text">MAD</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Mode de remboursement</label>
+                        <select class="form-select" name="mode_remboursement" required>
+                            <option value="">Sélectionner...</option>
+                            <option value="prelevement_salaire">Prélèvement sur salaire</option>
+                            <option value="virement">Virement</option>
+                            <option value="especes">Espèces</option>
+                            <option value="cheque">Chèque</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Commentaires</label>
+                        <textarea class="form-control" name="commentaires" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function voirAvance(avanceId) {
+    fetch(`/api/avance/${avanceId}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('detailsAvanceContent').innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Informations Générales</h6>
+                        <table class="table table-sm">
+                            <tr><td><strong>Employé:</strong></td><td>${data.employe.nom} ${data.employe.prenom}</td></tr>
+                            <tr><td><strong>Matricule:</strong></td><td>${data.employe.matricule}</td></tr>
+                            <tr><td><strong>Date avance:</strong></td><td>${data.date_avance}</td></tr>
+                            <tr><td><strong>Montant:</strong></td><td>${data.montant} MAD</td></tr>
+                            <tr><td><strong>Montant restant:</strong></td><td>${data.montant_restant} MAD</td></tr>
+                            <tr><td><strong>Statut:</strong></td><td><span class="badge bg-${data.statut === 'remboursee' ? 'success' : 'warning'}">${data.statut}</span></td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Remboursements</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Montant</th>
+                                        <th>Mode</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.remboursements.map(r => `
+                                        <tr>
+                                            <td>${r.date_remboursement}</td>
+                                            <td>${r.montant_rembourse} MAD</td>
+                                            <td>${r.mode_remboursement}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                ${data.motif ? `<div class="mt-3"><h6>Motif</h6><p>${data.motif}</p></div>` : ''}
+                ${data.commentaires ? `<div class="mt-3"><h6>Commentaires</h6><p>${data.commentaires}</p></div>` : ''}
+            `;
+            
+            const modal = new bootstrap.Modal(document.getElementById('detailsAvanceModal'));
+            modal.show();
+        });
+}
+
+function ajouterRemboursement(avanceId) {
+    document.getElementById('avance_id').value = avanceId;
+    const modal = new bootstrap.Modal(document.getElementById('ajouterRemboursementModal'));
+    modal.show();
+}
+
+function historique(avanceId) {
+    // Implémenter l'affichage de l'historique
+    console.log('Historique pour avance:', avanceId);
+}
+
+// Gestionnaire du formulaire de remboursement
+document.getElementById('remboursementForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch('{{ url_for("paie.ajouter_remboursement") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('ajouterRemboursementModal')).hide();
+            location.reload();
+        } else {
+            alert('Erreur: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Erreur lors de l\'enregistrement');
+    });
+});
+
+// Initialisation de la date par défaut
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.querySelector('input[name="date_avance"]').value = today;
+    document.querySelector('input[name="date_remboursement"]').value = today;
+    document.querySelector('input[name="date_debut_remboursement"]').value = today;
+});
+</script>
+{% endblock %}

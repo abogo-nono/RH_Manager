@@ -1,0 +1,298 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- En-tête du dashboard -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h2><i class="bi bi-speedometer2 me-2"></i>Tableau de Bord</h2>
+          <p class="text-muted">Vue d'ensemble des activités RH</p>
+        </div>
+        <div>
+          <a href="{{ url_for('dashboard.reports_dashboard') }}" class="btn btn-outline-primary me-2">
+            <i class="bi bi-file-text me-1"></i>Rapports
+          </a>
+          <a href="{{ url_for('dashboard.advanced_dashboard') }}" class="btn btn-outline-success">
+            <i class="bi bi-graph-up-arrow me-1"></i>Analytics Avancé
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Métriques principales -->
+  <div class="row g-3 mb-4">
+    <!-- Carte Total Employés -->
+    <div class="col-md-3">
+      <div class="card shadow-sm border-primary">
+        <div class="card-body d-flex align-items-center">
+          <i class="bi bi-people-fill fs-1 text-primary me-3"></i>
+          <div>
+            <h6 class="mb-0 text-muted">Total Employés</h6>
+            <h3 class="mb-0">{{ total_employes }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Carte Absences en cours -->
+    <div class="col-md-3">
+      <div class="card shadow-sm border-warning">
+        <div class="card-body d-flex align-items-center">
+          <i class="bi bi-calendar-x-fill fs-1 text-warning me-3"></i>
+          <div>
+            <h6 class="mb-0 text-muted">Absences du jour</h6>
+            <h3 class="mb-0">{{ absences_en_cours }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Carte Congés en cours -->
+    <div class="col-md-3">
+      <div class="card shadow-sm border-success">
+        <div class="card-body d-flex align-items-center">
+          <i class="bi bi-calendar-check-fill fs-1 text-success me-3"></i>
+          <div>
+            <h6 class="mb-0 text-muted">Congés en cours</h6>
+            <h3 class="mb-0">{{ conges_en_cours }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Carte Dernier recrutement -->
+    <div class="col-md-3">
+      <div class="card shadow-sm border-info">
+        <div class="card-body">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-person-plus-fill fs-1 text-info me-3"></i>
+            <div>
+              <h6 class="mb-0 text-muted">Dernier recrutement</h6>
+              {% if dernier_recrutement %}
+                <h5 class="mb-0">{{ dernier_recrutement.nom }}</h5>
+                <small class="text-muted">{{ dernier_recrutement.date_embauche.strftime('%d/%m/%Y') }}</small>
+              {% else %}
+                <p class="mb-0 text-muted">Aucun recrutement</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Métriques secondaires -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-2">
+      <div class="card text-center">
+        <div class="card-body">
+          <i class="bi bi-person-check text-success fs-2"></i>
+          <h4 class="mt-2">{{ nouvelles_embauches }}</h4>
+          <small class="text-muted">Embauches ce mois</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card text-center">
+        <div class="card-body">
+          <i class="bi bi-clock-history text-warning fs-2"></i>
+          <h4 class="mt-2">{{ conges_en_attente }}</h4>
+          <small class="text-muted">Congés en attente</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card text-center">
+        <div class="card-body">
+          <i class="bi bi-exclamation-triangle text-danger fs-2"></i>
+          <h4 class="mt-2">{{ absences_non_justifiees }}</h4>
+          <small class="text-muted">Absences non justifiées</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card text-center">
+        <div class="card-body">
+          <i class="bi bi-file-earmark-text text-info fs-2"></i>
+          <h4 class="mt-2">{{ bulletins_brouillon }}</h4>
+          <small class="text-muted">Bulletins brouillon</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card text-center">
+        <div class="card-body">
+          <i class="bi bi-graph-up text-purple fs-2"></i>
+          <h4 class="mt-2">{{ evaluations_retard }}</h4>
+          <small class="text-muted">Évaluations en retard</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card text-center">
+        <div class="card-body">
+          <i class="bi bi-piggy-bank text-secondary fs-2"></i>
+          <h4 class="mt-2">{{ jours_conges_restants }}</h4>
+          <small class="text-muted">Jours congés restants</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Graphiques et analytics -->
+  <div class="row">
+    <!-- Répartition par département -->
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Répartition par département</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="departmentChart" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Évolution des absences -->
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Évolution des absences</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="absencesChart" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tableau récapitulatif -->
+  <div class="row mt-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-table me-2"></i>Activités récentes</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Description</th>
+                  <th>Date</th>
+                  <th>Statut</th>
+                </tr>
+              </thead>
+              <tbody id="recentActivities">
+                <!-- Les activités récentes seront chargées via AJAX -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Données des graphiques
+    const chartsData = {{ charts_data | tojson }};
+    
+    // Graphique des départements
+    const deptCtx = document.getElementById('departmentChart').getContext('2d');
+    new Chart(deptCtx, {
+        type: 'pie',
+        data: {
+            labels: chartsData.departements.labels,
+            datasets: [{
+                data: chartsData.departements.data,
+                backgroundColor: [
+                    '#FF6384',
+                    '#36A2EB',
+                    '#FFCE56',
+                    '#4BC0C0',
+                    '#9966FF',
+                    '#FF9F40'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+    
+    // Graphique des absences
+    const absCtx = document.getElementById('absencesChart').getContext('2d');
+    new Chart(absCtx, {
+        type: 'line',
+        data: {
+            labels: chartsData.absences_evolution.map(item => item.month),
+            datasets: [{
+                label: 'Absences',
+                data: chartsData.absences_evolution.map(item => item.count),
+                borderColor: '#FF6384',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+    
+    // Charger les activités récentes
+    loadRecentActivities();
+});
+
+function loadRecentActivities() {
+    // Simuler le chargement des activités récentes
+    const activities = [
+        { type: 'Congé', description: 'Demande de congé - Jean Dupont', date: '2025-07-18', status: 'En attente' },
+        { type: 'Absence', description: 'Absence maladie - Marie Martin', date: '2025-07-17', status: 'Justifiée' },
+        { type: 'Évaluation', description: 'Évaluation annuelle - Pierre Durand', date: '2025-07-16', status: 'Complétée' },
+        { type: 'Paie', description: 'Bulletin de paie - Équipe IT', date: '2025-07-15', status: 'Validé' }
+    ];
+    
+    const tbody = document.getElementById('recentActivities');
+    tbody.innerHTML = activities.map(activity => `
+        <tr>
+            <td><span class="badge bg-secondary">${activity.type}</span></td>
+            <td>${activity.description}</td>
+            <td>${activity.date}</td>
+            <td>
+                <span class="badge ${getStatusBadgeClass(activity.status)}">${activity.status}</span>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function getStatusBadgeClass(status) {
+    switch(status) {
+        case 'En attente': return 'bg-warning';
+        case 'Justifiée': return 'bg-success';
+        case 'Complétée': return 'bg-info';
+        case 'Validé': return 'bg-primary';
+        default: return 'bg-secondary';
+    }
+}
+</script>
+{% endblock %}
+

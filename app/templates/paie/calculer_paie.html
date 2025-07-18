@@ -1,0 +1,404 @@
+{% extends "base.html" %}
+
+{% block title %}Calcul de la Paie{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-calculator me-2"></i>Calcul de la Paie</h2>
+            <p class="text-muted">Calculateur automatique de paie pour la période sélectionnée</p>
+        </div>
+        <div>
+            <a href="{{ url_for('paie.dashboard') }}" class="btn btn-info">
+                <i class="fas fa-dashboard me-2"></i>Dashboard
+            </a>
+            <a href="{{ url_for('paie.bulletins') }}" class="btn btn-secondary">
+                <i class="fas fa-file-invoice-dollar me-2"></i>Bulletins
+            </a>
+        </div>
+    </div>
+
+    <!-- Formulaire de sélection -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5><i class="fas fa-cog me-2"></i>Paramètres de Calcul</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" id="calculForm">
+                {{ form.hidden_tag() }}
+                
+                <div class="row">
+                    <div class="col-md-3">
+                        {{ form.mois.label(class="form-label") }}
+                        {{ form.mois(class="form-select") }}
+                    </div>
+                    <div class="col-md-3">
+                        {{ form.annee.label(class="form-label") }}
+                        {{ form.annee(class="form-select") }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ form.employes.label(class="form-label") }}
+                        {{ form.employes(class="form-select", multiple=True, size="1") }}
+                        <small class="form-text text-muted">Laissez vide pour tous les employés</small>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="submit" class="btn btn-primary d-block w-100">
+                            <i class="fas fa-calculator me-2"></i>Calculer
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            {{ form.recalculer_existants() }}
+                            {{ form.recalculer_existants.label(class="form-check-label") }}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            {{ form.creer_automatiquement() }}
+                            {{ form.creer_automatiquement.label(class="form-check-label") }}
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Résultats du calcul -->
+    {% if resultats %}
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5><i class="fas fa-chart-bar me-2"></i>Résultats du Calcul</h5>
+            <div>
+                <span class="badge bg-success">{{ resultats.success }} réussis</span>
+                <span class="badge bg-danger">{{ resultats.erreurs }} erreurs</span>
+            </div>
+        </div>
+        <div class="card-body">
+            <!-- Résumé -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card border-success">
+                        <div class="card-body text-center">
+                            <i class="fas fa-users fa-2x text-success mb-2"></i>
+                            <h4 class="text-success">{{ resultats.employes_traites }}</h4>
+                            <p class="text-muted">Employés traités</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-primary">
+                        <div class="card-body text-center">
+                            <i class="fas fa-file-invoice-dollar fa-2x text-primary mb-2"></i>
+                            <h4 class="text-primary">{{ resultats.bulletins_crees }}</h4>
+                            <p class="text-muted">Bulletins créés</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-info">
+                        <div class="card-body text-center">
+                            <i class="fas fa-coins fa-2x text-info mb-2"></i>
+                            <h4 class="text-info">{{ format_currency(resultats.montant_total_brut) }}</h4>
+                            <p class="text-muted">Total Brut</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-warning">
+                        <div class="card-body text-center">
+                            <i class="fas fa-hand-holding-usd fa-2x text-warning mb-2"></i>
+                            <h4 class="text-warning">{{ format_currency(resultats.montant_total_net) }}</h4>
+                            <p class="text-muted">Total Net</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Détails par employé -->
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Employé</th>
+                            <th>Statut</th>
+                            <th>Salaire Base</th>
+                            <th>Salaire Brut</th>
+                            <th>Cotisations</th>
+                            <th>Salaire Net</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for resultat in resultats.details %}
+                        <tr class="{% if resultat.erreur %}table-danger{% else %}table-success{% endif %}">
+                            <td>
+                                <strong>{{ resultat.employe.nom }} {{ resultat.employe.prenom }}</strong><br>
+                                <small class="text-muted">{{ resultat.employe.matricule }}</small>
+                            </td>
+                            <td>
+                                {% if resultat.erreur %}
+                                    <span class="badge bg-danger">Erreur</span>
+                                    <br><small class="text-danger">{{ resultat.erreur }}</small>
+                                {% elif resultat.bulletin_existant %}
+                                    <span class="badge bg-info">Recalculé</span>
+                                {% else %}
+                                    <span class="badge bg-success">Créé</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ format_currency(resultat.salaire_base) if resultat.salaire_base else '-' }}</td>
+                            <td>{{ format_currency(resultat.salaire_brut) if resultat.salaire_brut else '-' }}</td>
+                            <td>{{ format_currency(resultat.cotisations) if resultat.cotisations else '-' }}</td>
+                            <td>
+                                {% if resultat.salaire_net %}
+                                    <strong class="text-success">{{ format_currency(resultat.salaire_net) }}</strong>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if resultat.bulletin_id %}
+                                    <a href="{{ url_for('paie.voir_bulletin', id=resultat.bulletin_id) }}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Actions post-calcul -->
+            <div class="d-flex justify-content-between mt-4">
+                <div>
+                    {% if resultats.erreurs > 0 %}
+                        <button class="btn btn-warning" onclick="retenterCalcul()">
+                            <i class="fas fa-redo me-2"></i>Retenter les erreurs
+                        </button>
+                    {% endif %}
+                </div>
+                <div>
+                    {% if resultats.bulletins_crees > 0 %}
+                        <button class="btn btn-success" onclick="validerTousBulletins()">
+                            <i class="fas fa-check me-2"></i>Valider tous les bulletins
+                        </button>
+                        <button class="btn btn-info" onclick="exporterResultats()">
+                            <i class="fas fa-download me-2"></i>Exporter les résultats
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Paramètres de calcul -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5><i class="fas fa-cogs me-2"></i>Paramètres de Calcul Avancés</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6>Cotisations Sociales</h6>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <tr>
+                                    <td>CNSS (Employé)</td>
+                                    <td class="text-end">4.48%</td>
+                                </tr>
+                                <tr>
+                                    <td>AMO (Employé)</td>
+                                    <td class="text-end">2.26%</td>
+                                </tr>
+                                <tr>
+                                    <td>CIMR (Employé)</td>
+                                    <td class="text-end">3.96%</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6>Impôt sur le Revenu</h6>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <tr>
+                                    <td>0 - 30 000</td>
+                                    <td class="text-end">0%</td>
+                                </tr>
+                                <tr>
+                                    <td>30 000 - 50 000</td>
+                                    <td class="text-end">10%</td>
+                                </tr>
+                                <tr>
+                                    <td>50 000 - 60 000</td>
+                                    <td class="text-end">20%</td>
+                                </tr>
+                                <tr>
+                                    <td>60 000 - 80 000</td>
+                                    <td class="text-end">30%</td>
+                                </tr>
+                                <tr>
+                                    <td>80 000 - 180 000</td>
+                                    <td class="text-end">34%</td>
+                                </tr>
+                                <tr>
+                                    <td>> 180 000</td>
+                                    <td class="text-end">38%</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6>Paramètres</h6>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <tr>
+                                    <td>Heures mensuelles</td>
+                                    <td class="text-end">173.33</td>
+                                </tr>
+                                <tr>
+                                    <td>Majoration H.Sup</td>
+                                    <td class="text-end">25%</td>
+                                </tr>
+                                <tr>
+                                    <td>Jours ouvrables</td>
+                                    <td class="text-end">22</td>
+                                </tr>
+                                <tr>
+                                    <td>Déduction forfaitaire</td>
+                                    <td class="text-end">17%</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Log des calculs -->
+    <div class="card">
+        <div class="card-header">
+            <h5><i class="fas fa-history me-2"></i>Historique des Calculs</h5>
+        </div>
+        <div class="card-body">
+            {% if historique_calculs %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Période</th>
+                                <th>Employés</th>
+                                <th>Bulletins</th>
+                                <th>Total</th>
+                                <th>Utilisateur</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for calcul in historique_calculs %}
+                            <tr>
+                                <td>{{ calcul.date_calcul.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>{{ calcul.mois_nom }} {{ calcul.annee }}</td>
+                                <td>{{ calcul.nb_employes }}</td>
+                                <td>{{ calcul.nb_bulletins }}</td>
+                                <td>{{ format_currency(calcul.montant_total) }}</td>
+                                <td>{{ calcul.utilisateur.nom_utilisateur }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted text-center">Aucun calcul effectué pour le moment</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function retenterCalcul() {
+    // Relancer le calcul pour les employés en erreur
+    if (confirm('Voulez-vous retenter le calcul pour les employés en erreur ?')) {
+        // Implémentation du nouveau calcul
+        document.getElementById('calculForm').submit();
+    }
+}
+
+function validerTousBulletins() {
+    if (confirm('Voulez-vous valider tous les bulletins créés ?')) {
+        fetch('{{ url_for("paie.valider_bulletins_masse") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                'periode': '{{ resultats.mois if resultats else "" }}/{{ resultats.annee if resultats else "" }}'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Bulletins validés avec succès');
+                location.reload();
+            } else {
+                alert('Erreur lors de la validation: ' + data.message);
+            }
+        });
+    }
+}
+
+function exporterResultats() {
+    // Télécharger les résultats en Excel
+    window.location.href = '{{ url_for("paie.export_resultats_calcul") }}?mois={{ resultats.mois if resultats else "" }}&annee={{ resultats.annee if resultats else "" }}';
+}
+
+// Initialisation du sélecteur multiple
+document.addEventListener('DOMContentLoaded', function() {
+    // Transformer le select multiple en un select avec recherche
+    const employesSelect = document.getElementById('employes');
+    if (employesSelect) {
+        // Vous pouvez intégrer une bibliothèque comme Select2 ou Choices.js ici
+        employesSelect.setAttribute('data-placeholder', 'Sélectionner les employés...');
+    }
+});
+
+// Gestion du formulaire
+document.getElementById('calculForm').addEventListener('submit', function(e) {
+    const employesSelect = document.getElementById('employes');
+    const selectedOptions = Array.from(employesSelect.selectedOptions);
+    
+    if (selectedOptions.length === 0) {
+        if (!confirm('Aucun employé sélectionné. Voulez-vous calculer pour tous les employés ?')) {
+            e.preventDefault();
+            return;
+        }
+    }
+    
+    // Afficher un loader
+    const submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Calcul en cours...';
+    submitBtn.disabled = true;
+});
+</script>
+{% endblock %}

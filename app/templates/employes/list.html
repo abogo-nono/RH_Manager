@@ -1,0 +1,268 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2><i class="bi bi-people-fill me-2"></i>Gestion des Employés</h2>
+        <div>
+            <a href="{{ url_for('rh.export_employes_excel') }}" class="btn btn-outline-success me-1">
+                <i class="bi bi-file-earmark-excel"></i> Export Excel
+            </a>
+            <a href="{{ url_for('rh.export_employes_pdf') }}" target="_blank" class="btn btn-outline-danger me-1">
+                <i class="bi bi-file-earmark-pdf"></i> Export PDF
+            </a>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addEmployeModal">
+                <i class="bi bi-person-plus"></i> Ajouter un employé
+            </button>
+        </div>
+    </div>
+
+    <!-- Barre de recherche -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Nom/Prénom</label>
+                    <input type="text" name="nom" class="form-control" value="{{ request.args.get('nom', '') }}" placeholder="Rechercher par nom...">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Département</label>
+                    <select name="departement" class="form-select">
+                        <option value="">Tous</option>
+                        <option value="Ressources Humaines" {{ 'selected' if request.args.get('departement') == 'Ressources Humaines' }}>RH</option>
+                        <option value="IT" {{ 'selected' if request.args.get('departement') == 'IT' }}>IT</option>
+                        <option value="Finance" {{ 'selected' if request.args.get('departement') == 'Finance' }}>Finance</option>
+                        <option value="Administration" {{ 'selected' if request.args.get('departement') == 'Administration' }}>Administration</option>
+                        <option value="Commercial" {{ 'selected' if request.args.get('departement') == 'Commercial' }}>Commercial</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Poste</label>
+                    <input type="text" name="poste" class="form-control" value="{{ request.args.get('poste', '') }}" placeholder="Poste...">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Statut</label>
+                    <select name="statut" class="form-select">
+                        <option value="">Tous</option>
+                        <option value="Actif" {{ 'selected' if request.args.get('statut') == 'Actif' }}>Actif</option>
+                        <option value="Inactif" {{ 'selected' if request.args.get('statut') == 'Inactif' }}>Inactif</option>
+                        <option value="Suspendu" {{ 'selected' if request.args.get('statut') == 'Suspendu' }}>Suspendu</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2"><i class="bi bi-search"></i> Rechercher</button>
+                    <a href="{{ url_for('rh.list_employes') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-clockwise"></i> Reset</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Statistiques rapides -->
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ employes|length }}</h4>
+                            <p class="mb-0">Total Employés</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-people-fill" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ employes|selectattr('statut', 'equalto', 'Actif')|list|length }}</h4>
+                            <p class="mb-0">Actifs</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-check-circle-fill" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ employes|selectattr('type_contrat', 'equalto', 'CDI')|list|length }}</h4>
+                            <p class="mb-0">CDI</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-file-earmark-text-fill" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ employes|selectattr('type_contrat', 'equalto', 'CDD')|list|length }}</h4>
+                            <p class="mb-0">CDD</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-clock-fill" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table des employés -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover" id="employeesTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Photo</th>
+                            <th>Nom complet</th>
+                            <th>Poste</th>
+                            <th>Département</th>
+                            <th>Contact</th>
+                            <th>Statut</th>
+                            <th>Ancienneté</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        {% for emp in employes %}
+        <tr>            
+          <td>{{ emp.id }}</td>
+          <td>{{ emp.nom }}</td>
+          <td>{{ emp.poste }}</td> 
+          <td>{{ emp.departement }}</td>
+        <td>{{ emp.email }} <br>+237 {{ emp.telephone }}</td>
+          <td>
+            <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#editEmployeModal{{ emp.id }}"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteEmployeModal{{ emp.id }}"><i class="bi bi-trash"></i></button>
+            <a href="{{ url_for('evaluation.list_evaluations', employe_id=emp.id) }}" 
+               class="btn btn-outline-info btn-sm" title="Évaluations"><i class="bi bi-clipboard-data"></i></a>
+          </td>
+
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Modal ajouter -->
+<div class="modal fade" id="addEmployeModal" tabindex="-1" aria-labelledby="addEmployeModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addEmployeModalLabel">Ajouter un employé</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <form method="POST" action="/employes/add">
+        <div class="modal-body">
+          {{ form.hidden_tag() }}
+          <div class="mb-3">{{ form.nom.label }} {{ form.nom(class="form-control") }}</div>
+          <div class="mb-3">{{ form.poste.label }} {{ form.poste(class="form-control") }}</div>
+          <div class="mb-3">{{ form.departement.label }} {{ form.departement(class="form-control") }}</div>
+          <div class="mb-3">{{ form.email.label }} {{ form.email(class="form-control") }}</div>
+          <div class="mb-3">{{ form.telephone.label }} {{ form.telephone(class="form-control") }}</div>
+          <div class="mb-3">{{ form.type_contrat.label }} {{ form.type_contrat(class="form-control") }}</div>
+          <div class="mb-3">{{ form.date_embauche.label }} {{ form.date_embauche(class="form-control") }}</div>
+          <div class="mb-3">{{ form.statut.label }} {{ form.statut(class="form-control") }}</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+          {{ form.submit(class="btn btn-success") }}
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Modifier pour chaque employé -->
+{% for emp in employes %}
+<div class="modal fade" id="editEmployeModal{{ emp.id }}" tabindex="-1" aria-labelledby="editEmployeModalLabel{{ emp.id }}" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="/employes/edit/{{ emp.id }}">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editEmployeModalLabel{{ emp.id }}">Modifier {{ emp.nom }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          {{ form.hidden_tag() }}
+          <div class="mb-3">
+            <label>Nom</label>
+            <input type="text" name="nom" value="{{ emp.nom }}" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label>Poste</label>
+            <input type="text" name="poste" value="{{ emp.poste }}" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label>Département</label>
+            <input type="text" name="departement" value="{{ emp.departement }}" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label>Email</label>
+            <input type="email" name="email" value="{{ emp.email }}" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label>Téléphone</label>
+            <input type="text" name="telephone" value="{{ emp.telephone }}" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label>Type de contrat</label>
+            <input type="text" name="type_contrat" value="{{ emp.type_contrat }}" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label>Date d'embauche</label>
+            <input type="date" name="date_embauche" value="{{ emp.date_embauche }}" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label>Statut</label>
+            <input type="text" name="statut" value="{{ emp.statut }}" class="form-control">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+          <button type="submit" class="btn btn-success">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+<!-- Modal Supprimer pour chaque employé -->
+{% for emp in employes %}
+<div class="modal fade" id="deleteEmployeModal{{ emp.id }}" tabindex="-1" aria-labelledby="deleteEmployeModalLabel{{ emp.id }}" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="/employes/delete/{{ emp.id }}">
+        <div class="modal-header">
+          <h5 class="modal-title" id="deleteEmployeModalLabel{{ emp.id }}">Confirmer la suppression</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          Voulez-vous vraiment supprimer <strong>{{ emp.nom }}</strong> ?
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger">Supprimer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{% endblock %}

@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-edit me-2"></i>{{ title }}</h2>
+            <p class="text-muted">
+                {% if evaluation %}
+                    Modification de l'évaluation de {{ evaluation.employe.nom }} {{ evaluation.employe.prenom or '' }}
+                {% else %}
+                    Création d'une nouvelle évaluation de performance
+                {% endif %}
+            </p>
+        </div>
+        <div>
+            <a href="{{ url_for('evaluation.list_evaluations') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Retour à la liste
+            </a>
+        </div>
+    </div>
+
+    <!-- Formulaire principal -->
+    <form method="POST" class="needs-validation" novalidate>
+        {{ form.hidden_tag() }}
+        
+        <div class="row">
+            <div class="col-md-8">
+                <!-- Informations de base -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-info-circle me-2"></i>Informations de base</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.employe_id.label(class="form-label") }}
+                                    {{ form.employe_id(class="form-select") }}
+                                    {% if form.employe_id.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.employe_id.errors[0] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.template_id.label(class="form-label") }}
+                                    {{ form.template_id(class="form-select") }}
+                                    {% if form.template_id.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.template_id.errors[0] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    {{ form.periode.label(class="form-label") }}
+                                    {{ form.periode }}
+                                    {% if form.periode.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.periode.errors[0] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    {{ form.type_evaluation.label(class="form-label") }}
+                                    {{ form.type_evaluation }}
+                                    {% if form.type_evaluation.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.type_evaluation.errors[0] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    {{ form.annee.label(class="form-label") }}
+                                    {{ form.annee }}
+                                    {% if form.annee.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.annee.errors[0] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.date_evaluation.label(class="form-label") }}
+                                    {{ form.date_evaluation }}
+                                    {% if form.date_evaluation.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.date_evaluation.errors[0] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.statut.label(class="form-label") }}
+                                    {{ form.statut }}
+                                    {% if form.statut.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.statut.errors[0] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scores et notes -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-star me-2"></i>Scores et notation</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.score_global.label(class="form-label") }}
+                                    <div class="input-group">
+                                        {{ form.score_global }}
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                    {% if form.score_global.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.score_global.errors[0] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.note_finale.label(class="form-label") }}
+                                    {{ form.note_finale }}
+                                    {% if form.note_finale.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.note_finale.errors[0] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Objectifs -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-target me-2"></i>Objectifs</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            {{ form.objectifs_atteints.label(class="form-label") }}
+                            {{ form.objectifs_atteints }}
+                            {% if form.objectifs_atteints.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.objectifs_atteints.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.objectifs_non_atteints.label(class="form-label") }}
+                            {{ form.objectifs_non_atteints }}
+                            {% if form.objectifs_non_atteints.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.objectifs_non_atteints.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.objectifs_futurs.label(class="form-label") }}
+                            {{ form.objectifs_futurs }}
+                            {% if form.objectifs_futurs.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.objectifs_futurs.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Plan de développement -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-line me-2"></i>Développement</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            {{ form.plan_developpement.label(class="form-label") }}
+                            {{ form.plan_developpement }}
+                            {% if form.plan_developpement.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.plan_developpement.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.formations_recommandees.label(class="form-label") }}
+                            {{ form.formations_recommandees }}
+                            {% if form.formations_recommandees.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.formations_recommandees.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel latéral -->
+            <div class="col-md-4">
+                <!-- Commentaires -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-comments me-2"></i>Commentaires</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            {{ form.commentaire_evaluateur.label(class="form-label") }}
+                            {{ form.commentaire_evaluateur }}
+                            {% if form.commentaire_evaluateur.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.commentaire_evaluateur.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.commentaire_employe.label(class="form-label") }}
+                            {{ form.commentaire_employe }}
+                            {% if form.commentaire_employe.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.commentaire_employe.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.commentaire_rh.label(class="form-label") }}
+                            {{ form.commentaire_rh }}
+                            {% if form.commentaire_rh.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.commentaire_rh.errors[0] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-cog me-2"></i>Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            {{ form.submit(class="btn btn-primary") }}
+                            
+                            {% if evaluation %}
+                                <a href="{{ url_for('evaluation.detail_evaluation', id=evaluation.id) }}" class="btn btn-info">
+                                    <i class="fas fa-eye me-2"></i>Voir l'évaluation
+                                </a>
+                                <a href="{{ url_for('evaluation.list_criteres', evaluation_id=evaluation.id) }}" class="btn btn-secondary">
+                                    <i class="fas fa-list me-2"></i>Gérer les critères
+                                </a>
+                            {% endif %}
+                            
+                            <a href="{{ url_for('evaluation.list_evaluations') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>Annuler
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Aide -->
+                {% if not evaluation %}
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h6><i class="fas fa-question-circle me-2"></i>Aide</h6>
+                        </div>
+                        <div class="card-body">
+                            <small class="text-muted">
+                                <strong>Conseils :</strong>
+                                <ul class="mb-0">
+                                    <li>Utilisez un modèle d'évaluation pour préremplir les critères</li>
+                                    <li>Le score global sera recalculé automatiquement</li>
+                                    <li>Vous pourrez ajouter des critères détaillés après création</li>
+                                </ul>
+                            </small>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+// Validation Bootstrap
+(function() {
+    'use strict';
+    window.addEventListener('load', function() {
+        var forms = document.getElementsByClassName('needs-validation');
+        var validation = Array.prototype.filter.call(forms, function(form) {
+            form.addEventListener('submit', function(event) {
+                if (form.checkValidity() === false) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    }, false);
+})();
+
+// Calcul automatique de la note finale basé sur le score
+document.getElementById('score_global').addEventListener('input', function() {
+    const score = parseFloat(this.value);
+    const noteField = document.getElementById('note_finale');
+    
+    if (score >= 90) {
+        noteField.value = 'Excellent';
+    } else if (score >= 80) {
+        noteField.value = 'Très Bien';
+    } else if (score >= 70) {
+        noteField.value = 'Bien';
+    } else if (score >= 60) {
+        noteField.value = 'Satisfaisant';
+    } else {
+        noteField.value = 'Insuffisant';
+    }
+});
+</script>
+{% endblock %}

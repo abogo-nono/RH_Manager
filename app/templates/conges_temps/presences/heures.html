@@ -1,0 +1,564 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- En-tête -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-0"><i class="bi bi-calendar-check text-primary"></i> Gestion des Heures de Travail</h1>
+      <p class="text-muted mb-0">Validation et suivi des heures des employés</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('conges_temps.presences_dashboard') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Dashboard
+      </a>
+      <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalAjoutHeures">
+        <i class="bi bi-plus-circle"></i> Ajouter des heures
+      </button>
+    </div>
+  </div>
+
+  <!-- Statistiques rapides -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card bg-primary text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <h4 class="mb-0">{{ '%.1f'|format(stats.total_heures) }}</h4>
+              <p class="mb-0">Heures totales</p>
+            </div>
+            <i class="bi bi-clock-fill fa-2x"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-info text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <h4 class="mb-0">{{ '%.1f'|format(stats.total_heures_sup) }}</h4>
+              <p class="mb-0">Heures supplémentaires</p>
+            </div>
+            <i class="bi bi-plus-circle-fill fa-2x"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-warning text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <h4 class="mb-0">{{ '%.0f'|format(stats.moyenne_retard) }}</h4>
+              <p class="mb-0">Retard moyen (min)</p>
+            </div>
+            <i class="bi bi-clock-history fa-2x"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-success text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <h4 class="mb-0">{{ '%.1f'|format(stats.taux_presence) }}%</h4>
+              <p class="mb-0">Taux de présence</p>
+            </div>
+            <i class="bi bi-graph-up fa-2x"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filtres -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5 class="mb-0"><i class="bi bi-funnel"></i> Filtres de recherche</h5>
+    </div>
+    <div class="card-body">
+      <form method="GET" class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label">Employé</label>
+          <select name="employe_id" class="form-select">
+            <option value="">Tous les employés</option>
+            {% for employe in employes %}
+            <option value="{{ employe.id }}" {% if filters.employe_id == employe.id %}selected{% endif %}>
+              {{ employe.nom }} {{ employe.prenom }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Date début</label>
+          <input type="date" name="date_debut" class="form-control" value="{{ filters.date_debut or '' }}">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Date fin</label>
+          <input type="date" name="date_fin" class="form-control" value="{{ filters.date_fin or '' }}">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Statut</label>
+          <select name="statut" class="form-select">
+            <option value="">Tous</option>
+            <option value="present" {% if filters.statut == 'present' %}selected{% endif %}>Présent</option>
+            <option value="absent" {% if filters.statut == 'absent' %}selected{% endif %}>Absent</option>
+            <option value="retard" {% if filters.statut == 'retard' %}selected{% endif %}>Retard</option>
+            <option value="conge" {% if filters.statut == 'conge' %}selected{% endif %}>Congé</option>
+            <option value="maladie" {% if filters.statut == 'maladie' %}selected{% endif %}>Maladie</option>
+          </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary me-2">
+            <i class="bi bi-search"></i> Rechercher
+          </button>
+          <a href="{{ url_for('conges_temps.gestion_heures') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-clockwise"></i> Reset
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Tableau des heures -->
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="bi bi-table"></i> Heures de travail</h5>
+      <div class="btn-group">
+        <button class="btn btn-sm btn-outline-success" onclick="validerSelection()">
+          <i class="bi bi-check-all"></i> Valider sélection
+        </button>
+        <button class="btn btn-sm btn-outline-primary" onclick="exporterSelection()">
+          <i class="bi bi-download"></i> Exporter
+        </button>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0" id="tableHeures">
+          <thead class="table-dark">
+            <tr>
+              <th>
+                <input type="checkbox" class="form-check-input" id="selectAll" onchange="toggleSelectAll()">
+              </th>
+              <th>Employé</th>
+              <th>Date</th>
+              <th>Arrivée</th>
+              <th>Départ</th>
+              <th>Heures travaillées</th>
+              <th>Heures sup.</th>
+              <th>Retard</th>
+              <th>Statut</th>
+              <th>Validation</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for heure in heures_travail.items %}
+            <tr>
+              <td>
+                <input type="checkbox" class="form-check-input row-select" value="{{ heure.id }}">
+              </td>
+              <td>
+                <div class="d-flex align-items-center">
+                  {% if heure.employe.photo %}
+                  <img src="{{ url_for('static', filename='uploads/employees/photos/' ~ heure.employe.photo) }}" 
+                       class="rounded-circle me-2" style="width: 32px; height: 32px;">
+                  {% else %}
+                  <div class="bg-secondary rounded-circle me-2 d-flex align-items-center justify-content-center" 
+                       style="width: 32px; height: 32px;">
+                    <i class="bi bi-person text-white"></i>
+                  </div>
+                  {% endif %}
+                  <div>
+                    <div class="fw-bold">{{ heure.employe.nom }} {{ heure.employe.prenom }}</div>
+                    <small class="text-muted">{{ heure.employe.poste or 'N/A' }}</small>
+                  </div>
+                </div>
+              </td>
+              <td>{{ heure.date_travail.strftime('%d/%m/%Y') }}</td>
+              <td>
+                {% if heure.heure_arrivee %}
+                  {{ heure.heure_arrivee.strftime('%H:%M') }}
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if heure.heure_depart %}
+                  {{ heure.heure_depart.strftime('%H:%M') }}
+                {% else %}
+                  <span class="text-muted">En cours</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="fw-bold">{{ '%.1f'|format(heure.heures_travaillees or 0) }}h</span>
+                {% if heure.duree_pause_minutes > 0 %}
+                  <small class="text-muted d-block">Pause: {{ heure.duree_pause_minutes }}min</small>
+                {% endif %}
+              </td>
+              <td>
+                {% if heure.heures_supplementaires > 0 %}
+                  <span class="text-info fw-bold">+{{ '%.1f'|format(heure.heures_supplementaires) }}h</span>
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if heure.retard_minutes > 0 %}
+                  <span class="text-warning fw-bold">{{ heure.retard_minutes }}min</span>
+                {% else %}
+                  <span class="text-success">-</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if heure.statut == 'present' %}
+                  <span class="badge bg-success">Présent</span>
+                {% elif heure.statut == 'retard' %}
+                  <span class="badge bg-warning">Retard</span>
+                {% elif heure.statut == 'absent' %}
+                  <span class="badge bg-danger">Absent</span>
+                {% elif heure.statut == 'conge' %}
+                  <span class="badge bg-info">Congé</span>
+                {% elif heure.statut == 'maladie' %}
+                  <span class="badge bg-secondary">Maladie</span>
+                {% else %}
+                  <span class="badge bg-light text-dark">{{ heure.statut|title }}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if heure.valide %}
+                  <div class="text-success">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <small class="d-block">{{ heure.date_validation.strftime('%d/%m %H:%M') if heure.date_validation else '' }}</small>
+                  </div>
+                {% else %}
+                  <span class="text-warning">
+                    <i class="bi bi-clock"></i> En attente
+                  </span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="btn-group btn-group-sm">
+                  <a href="{{ url_for('conges_temps.modifier_heures', id=heure.id) }}" 
+                     class="btn btn-outline-primary" title="Modifier">
+                    <i class="bi bi-pencil"></i>
+                  </a>
+                  {% if not heure.valide %}
+                  <button class="btn btn-outline-success" onclick="validerHeure({{ heure.id }})" title="Valider">
+                    <i class="bi bi-check"></i>
+                  </button>
+                  {% endif %}
+                  <button class="btn btn-outline-info" onclick="voirDetails({{ heure.id }})" title="Détails">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- Pagination -->
+      {% if heures_travail.pages > 1 %}
+      <div class="d-flex justify-content-between align-items-center p-3">
+        <div>
+          <small class="text-muted">
+            Affichage {{ heures_travail.per_page * (heures_travail.page - 1) + 1 }} à 
+            {{ heures_travail.per_page * heures_travail.page if heures_travail.page < heures_travail.pages else heures_travail.total }} 
+            sur {{ heures_travail.total }} entrées
+          </small>
+        </div>
+        <nav>
+          <ul class="pagination pagination-sm mb-0">
+            {% if heures_travail.has_prev %}
+            <li class="page-item">
+              <a class="page-link" href="{{ url_for('conges_temps.gestion_heures', page=heures_travail.prev_num, **filters) }}">Précédent</a>
+            </li>
+            {% endif %}
+            
+            {% for page_num in heures_travail.iter_pages() %}
+              {% if page_num %}
+                {% if page_num != heures_travail.page %}
+                <li class="page-item">
+                  <a class="page-link" href="{{ url_for('conges_temps.gestion_heures', page=page_num, **filters) }}">{{ page_num }}</a>
+                </li>
+                {% else %}
+                <li class="page-item active">
+                  <span class="page-link">{{ page_num }}</span>
+                </li>
+                {% endif %}
+              {% else %}
+                <li class="page-item disabled">
+                  <span class="page-link">...</span>
+                </li>
+              {% endif %}
+            {% endfor %}
+            
+            {% if heures_travail.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="{{ url_for('conges_temps.gestion_heures', page=heures_travail.next_num, **filters) }}">Suivant</a>
+            </li>
+            {% endif %}
+          </ul>
+        </nav>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Modal Ajout Heures -->
+<div class="modal fade" id="modalAjoutHeures" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Ajouter des heures de travail</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formAjoutHeures">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">Employé *</label>
+                <select class="form-select" name="employe_id" required>
+                  <option value="">Sélectionner un employé</option>
+                  {% for employe in employes %}
+                  <option value="{{ employe.id }}">{{ employe.nom }} {{ employe.prenom }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">Date *</label>
+                <input type="date" class="form-control" name="date_travail" required>
+              </div>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">Heure d'arrivée</label>
+                <input type="time" class="form-control" name="heure_arrivee">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">Heure de départ</label>
+                <input type="time" class="form-control" name="heure_depart">
+              </div>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Pause (minutes)</label>
+                <input type="number" class="form-control" name="duree_pause_minutes" value="60" min="0">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Heures travaillées</label>
+                <input type="number" class="form-control" name="heures_travaillees" step="0.25" min="0">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label">Statut</label>
+                <select class="form-select" name="statut">
+                  <option value="present">Présent</option>
+                  <option value="absent">Absent</option>
+                  <option value="retard">Retard</option>
+                  <option value="conge">Congé</option>
+                  <option value="maladie">Maladie</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">Commentaire</label>
+            <textarea class="form-control" name="commentaire" rows="3"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-success" onclick="ajouterHeures()">
+          <i class="bi bi-check"></i> Enregistrer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Détails -->
+<div class="modal fade" id="modalDetails" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-eye"></i> Détails des heures</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="detailsContent">
+        <!-- Contenu chargé dynamiquement -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Sélection multiple
+function toggleSelectAll() {
+  const selectAll = document.getElementById('selectAll');
+  const checkboxes = document.querySelectorAll('.row-select');
+  checkboxes.forEach(cb => cb.checked = selectAll.checked);
+}
+
+// Valider une heure
+function validerHeure(id) {
+  if (confirm('Valider ces heures de travail ?')) {
+    fetch(`/api/presences/valider-heure/${id}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        location.reload();
+      } else {
+        alert('Erreur: ' + data.error);
+      }
+    })
+    .catch(error => {
+      console.error('Erreur:', error);
+      alert('Erreur lors de la validation');
+    });
+  }
+}
+
+// Valider sélection
+function validerSelection() {
+  const selected = Array.from(document.querySelectorAll('.row-select:checked')).map(cb => cb.value);
+  if (selected.length === 0) {
+    alert('Veuillez sélectionner au moins une ligne');
+    return;
+  }
+  
+  if (confirm(`Valider ${selected.length} entrée(s) sélectionnée(s) ?`)) {
+    fetch('/api/presences/valider-heures-batch', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ids: selected})
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        location.reload();
+      } else {
+        alert('Erreur: ' + data.error);
+      }
+    })
+    .catch(error => {
+      console.error('Erreur:', error);
+      alert('Erreur lors de la validation');
+    });
+  }
+}
+
+// Voir détails
+function voirDetails(id) {
+  fetch(`/api/presences/details-heure/${id}`)
+    .then(response => response.text())
+    .then(html => {
+      document.getElementById('detailsContent').innerHTML = html;
+      new bootstrap.Modal(document.getElementById('modalDetails')).show();
+    })
+    .catch(error => {
+      console.error('Erreur:', error);
+      alert('Erreur lors du chargement des détails');
+    });
+}
+
+// Ajouter heures
+function ajouterHeures() {
+  const form = document.getElementById('formAjoutHeures');
+  const formData = new FormData(form);
+  
+  fetch('/api/presences/ajouter-heures', {
+    method: 'POST',
+    body: formData
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      bootstrap.Modal.getInstance(document.getElementById('modalAjoutHeures')).hide();
+      location.reload();
+    } else {
+      alert('Erreur: ' + data.error);
+    }
+  })
+  .catch(error => {
+    console.error('Erreur:', error);
+    alert('Erreur lors de l\'ajout');
+  });
+}
+
+// Exporter sélection
+function exporterSelection() {
+  const selected = Array.from(document.querySelectorAll('.row-select:checked')).map(cb => cb.value);
+  if (selected.length === 0) {
+    alert('Veuillez sélectionner au moins une ligne');
+    return;
+  }
+  
+  const params = new URLSearchParams();
+  selected.forEach(id => params.append('ids', id));
+  
+  window.open(`/conges-temps/presences/export?${params.toString()}`, '_blank');
+}
+
+// Initialisation
+document.addEventListener('DOMContentLoaded', function() {
+  // Définir la date par défaut à aujourd'hui
+  const today = new Date().toISOString().split('T')[0];
+  document.querySelector('input[name="date_travail"]').value = today;
+});
+</script>
+
+<style>
+.fa-2x {
+  font-size: 2em;
+}
+
+.table th {
+  border-top: none;
+}
+
+.page-link {
+  color: #007bff;
+}
+
+.page-item.active .page-link {
+  background-color: #007bff;
+  border-color: #007bff;
+}
+
+.btn-group-sm > .btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+</style>
+{% endblock %}

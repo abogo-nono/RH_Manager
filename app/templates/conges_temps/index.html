@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête du module -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2><i class="bi bi-calendar-check me-2"></i>Congés & Absences</h2>
+                    <p class="text-muted">Gestion des demandes de congés, absences et soldes</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('conges_temps.add_conge') }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i>Nouvelle demande
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques rapides -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ stats.en_attente if stats else 0 }}</h4>
+                            <p class="mb-0">En attente</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-clock-history" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ stats.approuves if stats else 0 }}</h4>
+                            <p class="mb-0">Approuvés</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-check-circle" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ stats.rejetes if stats else 0 }}</h4>
+                            <p class="mb-0">Rejetés</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-x-circle" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ stats.total if stats else 0 }}</h4>
+                            <p class="mb-0">Total</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-calendar3" style="font-size: 2rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation par onglets -->
+    <ul class="nav nav-tabs mb-4" id="congesTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="conges-tab" data-bs-toggle="tab" data-bs-target="#conges" type="button" role="tab">
+                <i class="bi bi-calendar-check me-1"></i>Congés
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="absences-tab" data-bs-toggle="tab" data-bs-target="#absences" type="button" role="tab">
+                <i class="bi bi-calendar-x me-1"></i>Absences
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="presences-tab" data-bs-toggle="tab" data-bs-target="#presences" type="button" role="tab">
+                <i class="bi bi-clock-history me-1"></i>Présences
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="soldes-tab" data-bs-toggle="tab" data-bs-target="#soldes" type="button" role="tab">
+                <i class="bi bi-piggy-bank me-1"></i>Soldes
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="calendrier-tab" data-bs-toggle="tab" data-bs-target="#calendrier" type="button" role="tab">
+                <i class="bi bi-calendar3 me-1"></i>Calendrier
+            </button>
+        </li>
+    </ul>
+
+    <!-- Contenu des onglets -->
+    <div class="tab-content" id="congesTabContent">
+        <!-- Include les templates des différents onglets -->
+        {% include 'conges_temps/conges.html' %}
+        {% include 'conges_temps/absences.html' %}
+        {% include 'conges_temps/presences.html' %}
+        {% include 'conges_temps/soldes.html' %}
+        {% include 'conges_temps/calendrier.html' %}
+    </div>
+</div>
+
+<script>
+// Navigation entre onglets et chargement de contenu
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialiser l'onglet actif
+    const urlParams = new URLSearchParams(window.location.search);
+    const activeTab = urlParams.get('tab') || 'conges';
+    
+    // Activer l'onglet correspondant
+    const tabElement = document.querySelector(`#${activeTab}-tab`);
+    const contentElement = document.querySelector(`#${activeTab}`);
+    
+    if (tabElement && contentElement) {
+        // Désactiver tous les onglets
+        document.querySelectorAll('.nav-link').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelectorAll('.tab-pane').forEach(pane => {
+            pane.classList.remove('show', 'active');
+        });
+        
+        // Activer l'onglet sélectionné
+        tabElement.classList.add('active');
+        contentElement.classList.add('show', 'active');
+    }
+    
+    // Gestionnaire d'événements pour les onglets
+    const tabTriggerList = [].slice.call(document.querySelectorAll('#congesTab button[data-bs-toggle="tab"]'));
+    
+    tabTriggerList.forEach(function (tabTrigger) {
+        tabTrigger.addEventListener('shown.bs.tab', function (event) {
+            const target = event.target.getAttribute('data-bs-target').replace('#', '');
+            
+            // Mettre à jour l'URL sans recharger la page
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('tab', target);
+            window.history.pushState(null, null, newUrl);
+        });
+    });
+});
+
+// Fonctions utilitaires globales
+function refreshCurrentTab() {
+    const activeTab = document.querySelector('.tab-pane.active').id;
+    
+    switch(activeTab) {
+        case 'conges':
+            location.reload(); // Recharger pour les congés
+            break;
+        case 'absences':
+            // Recharger les absences
+            break;
+        case 'soldes':
+            // Recharger les soldes
+            break;
+        case 'calendrier':
+            // Recharger le calendrier
+            break;
+    }
+}
+
+// Messages flash automatiques
+function showFlashMessage(message, category = 'info') {
+    const alertClass = category === 'error' ? 'alert-danger' : `alert-${category}`;
+    const alertHtml = `
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    // Insérer au début du contenu
+    const container = document.querySelector('.container-fluid');
+    container.insertAdjacentHTML('afterbegin', alertHtml);
+    
+    // Auto-masquer après 5 secondes
+    setTimeout(() => {
+        const alert = container.querySelector('.alert');
+        if (alert) {
+            alert.remove();
+        }
+    }, 5000);
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,387 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- En-tête -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h2><i class="bi bi-graph-up-arrow me-2"></i>Dashboard Analytics Avancé</h2>
+          <p class="text-muted">Analytics et KPIs détaillés pour le suivi des performances RH</p>
+        </div>
+        <div>
+          <a href="{{ url_for('dashboard.dashboard') }}" class="btn btn-outline-secondary me-2">
+            <i class="bi bi-arrow-left me-1"></i>Dashboard Principal
+          </a>
+          <a href="{{ url_for('dashboard.reports_dashboard') }}" class="btn btn-outline-primary">
+            <i class="bi bi-file-text me-1"></i>Rapports
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs Avancés -->
+  <div class="row mb-4">
+    <div class="col-md-2">
+      <div class="card text-center bg-primary text-white">
+        <div class="card-body">
+          <i class="bi bi-graph-down fs-2"></i>
+          <h4 class="mt-2" id="turnoverRate">--</h4>
+          <small>Taux de rotation (%)</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card text-center bg-success text-white">
+        <div class="card-body">
+          <i class="bi bi-cash-stack fs-2"></i>
+          <h4 class="mt-2" id="avgSalary">--</h4>
+          <small>Salaire moyen</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card text-center bg-warning text-white">
+        <div class="card-body">
+          <i class="bi bi-calendar-x fs-2"></i>
+          <h4 class="mt-2" id="absenteeismRate">--</h4>
+          <small>Taux d'absentéisme (%)</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card text-center bg-info text-white">
+        <div class="card-body">
+          <i class="bi bi-emoji-smile fs-2"></i>
+          <h4 class="mt-2" id="satisfactionScore">--</h4>
+          <small>Satisfaction employés</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card text-center bg-secondary text-white">
+        <div class="card-body">
+          <i class="bi bi-speedometer2 fs-2"></i>
+          <h4 class="mt-2" id="productivityRate">--</h4>
+          <small>Productivité (%)</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card text-center bg-dark text-white">
+        <div class="card-body">
+          <i class="bi bi-piggy-bank fs-2"></i>
+          <h4 class="mt-2" id="totalPayroll">--</h4>
+          <small>Masse salariale</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Graphiques avancés -->
+  <div class="row mb-4">
+    <!-- Statistiques par département -->
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-building me-2"></i>Statistiques par Département</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Département</th>
+                  <th>Employés</th>
+                  <th>Salaire moyen</th>
+                  <th>Taux d'absence</th>
+                </tr>
+              </thead>
+              <tbody id="departmentStats">
+                <tr>
+                  <td colspan="4" class="text-center">Chargement...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tendances sur 12 mois -->
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Tendances sur 12 mois</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="trendsChart" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Graphiques détaillés -->
+  <div class="row mb-4">
+    <!-- Analyse des absences par département -->
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Absences par Département</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="absencesDeptChart" height="250"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Évolution des embauches -->
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-person-plus me-2"></i>Évolution des Embauches</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="hiringChart" height="250"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Analyse des coûts salariaux -->
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-currency-dollar me-2"></i>Coûts Salariaux</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="salaryChart" height="250"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tableaux de bord détaillés -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-table me-2"></i>Analyse de Performance</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <h6>Top 5 Départements - Productivité</h6>
+              <div id="topDeptProductivity" class="mb-3">
+                <small class="text-muted">Chargement...</small>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <h6>Indicateurs Clés</h6>
+              <div id="keyMetrics" class="mb-3">
+                <small class="text-muted">Chargement...</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Charger les KPIs
+    loadKPIs();
+    
+    // Charger les statistiques par département
+    loadDepartmentStats();
+    
+    // Charger les tendances
+    loadTrends();
+    
+    // Charger les analytics avancées
+    loadAdvancedAnalytics();
+});
+
+function loadKPIs() {
+    fetch('/api/dashboard/kpi')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('turnoverRate').textContent = data.turnover_rate + '%';
+            document.getElementById('avgSalary').textContent = formatCurrency(data.avg_salary);
+            document.getElementById('absenteeismRate').textContent = data.absenteeism_rate + '%';
+            document.getElementById('satisfactionScore').textContent = data.satisfaction_score + '/20';
+            document.getElementById('productivityRate').textContent = data.productivity_rate + '%';
+            document.getElementById('totalPayroll').textContent = formatCurrency(data.total_payroll);
+        })
+        .catch(error => {
+            console.error('Erreur lors du chargement des KPIs:', error);
+        });
+}
+
+function loadDepartmentStats() {
+    fetch('/api/dashboard/departement-stats')
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.getElementById('departmentStats');
+            tbody.innerHTML = '';
+            
+            data.forEach(dept => {
+                const row = `
+                    <tr>
+                        <td>${dept.department}</td>
+                        <td>${dept.total_employees}</td>
+                        <td>${formatCurrency(dept.avg_salary)}</td>
+                        <td>${dept.absence_rate}%</td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        })
+        .catch(error => {
+            console.error('Erreur lors du chargement des stats département:', error);
+        });
+}
+
+function loadTrends() {
+    fetch('/api/dashboard/trends')
+        .then(response => response.json())
+        .then(data => {
+            const ctx = document.getElementById('trendsChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(item => item.month_name),
+                    datasets: [{
+                        label: 'Embauches',
+                        data: data.map(item => item.embauches),
+                        borderColor: '#28a745',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        tension: 0.4
+                    }, {
+                        label: 'Démissions',
+                        data: data.map(item => item.demissions),
+                        borderColor: '#dc3545',
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        tension: 0.4
+                    }, {
+                        label: 'Absences',
+                        data: data.map(item => item.absences),
+                        borderColor: '#ffc107',
+                        backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Erreur lors du chargement des tendances:', error);
+        });
+}
+
+function loadAdvancedAnalytics() {
+    fetch('/api/dashboard/analytics')
+        .then(response => response.json())
+        .then(data => {
+            // Graphique absences par département
+            const absCtx = document.getElementById('absencesDeptChart').getContext('2d');
+            new Chart(absCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.absences_dept.map(item => item.dept),
+                    datasets: [{
+                        data: data.absences_dept.map(item => item.count),
+                        backgroundColor: [
+                            '#FF6384',
+                            '#36A2EB',
+                            '#FFCE56',
+                            '#4BC0C0',
+                            '#9966FF',
+                            '#FF9F40'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+
+            // Graphique embauches
+            const hireCtx = document.getElementById('hiringChart').getContext('2d');
+            new Chart(hireCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.embauches_trend.map(item => item.month),
+                    datasets: [{
+                        label: 'Embauches',
+                        data: data.embauches_trend.map(item => item.count),
+                        backgroundColor: '#28a745'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Graphique salaires
+            const salCtx = document.getElementById('salaryChart').getContext('2d');
+            new Chart(salCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.salaires_dept.map(item => item.dept),
+                    datasets: [{
+                        label: 'Salaire moyen',
+                        data: data.salaires_dept.map(item => item.salaire_moyen),
+                        backgroundColor: '#007bff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Erreur lors du chargement des analytics:', error);
+        });
+}
+
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('fr-FR', {
+        style: 'currency',
+        currency: 'XAF',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(amount);
+}
+</script>
+{% endblock %}

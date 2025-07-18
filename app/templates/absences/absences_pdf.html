@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Liste des Absences</title>
+  <style>
+    body { 
+        font-family: Arial, sans-serif; 
+        margin: 40px; 
+        text-align: center; 
+    }
+    h1 { 
+        color: #333; 
+    }
+    .table-container { 
+        margin: 0 auto; 
+        width: 90%; 
+    }
+    table { 
+        width: 100%; 
+        border-collapse: collapse; 
+        margin-top: 30px; 
+    }
+    th, td { 
+        border: 1px solid #444; 
+        padding: 8px 12px; 
+        text-align: left; 
+        font-size: 12px; 
+    }
+    th { 
+        background-color: #f2f2f2; 
+    }
+    tr:nth-child(even) { 
+        background-color: #f9f9f9; 
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Liste des Absences</h1>
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Employé</th>
+          <th>Type</th>
+          <th>Période</th>
+          <th>Durée</th>
+          <th>Justificatif</th>
+          <th>Statut</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for absence in absences %}
+        <tr>
+          <td>{{ absence.employe.nom }}</td>
+          <td>{{ absence.type_absence }}</td>
+          <td>{{ absence.date_debut.strftime('%d/%m/%Y') }} - {{ absence.date_fin.strftime('%d/%m/%Y') }}</td>
+          <td>{{ absence.duree }} jours</td>
+          <td>{{ absence.justificatif }}</td>
+          <td>{{ absence.statut }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</body>
+</html>

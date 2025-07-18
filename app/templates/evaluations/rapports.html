@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block title %}Rapports d'Évaluations{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-chart-bar me-2"></i>Rapports d'Évaluations</h2>
+            <p class="text-muted">Génération de rapports et analyses des évaluations de performance</p>
+        </div>
+        <div>
+            <a href="{{ url_for('evaluation.dashboard') }}" class="btn btn-info">
+                <i class="fas fa-dashboard me-2"></i>Dashboard
+            </a>
+            <a href="{{ url_for('evaluation.list_evaluations') }}" class="btn btn-secondary">
+                <i class="fas fa-list me-2"></i>Liste des Évaluations
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Formulaire de génération de rapport -->
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-file-export me-2"></i>Paramètres du rapport</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('evaluation.generer_rapport') }}" class="needs-validation" novalidate>
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- Période -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.date_debut.label(class="form-label") }}
+                                    {{ form.date_debut }}
+                                    {% if form.date_debut.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.date_debut.errors[0] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.date_fin.label(class="form-label") }}
+                                    {{ form.date_fin }}
+                                    {% if form.date_fin.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.date_fin.errors[0] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Filtres -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.employes.label(class="form-label") }}
+                                    {{ form.employes }}
+                                    <small class="form-text text-muted">
+                                        Maintenez Ctrl/Cmd pour sélectionner plusieurs employés
+                                    </small>
+                                    {% if form.employes.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.employes.errors[0] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.types_evaluation.label(class="form-label") }}
+                                    {{ form.types_evaluation }}
+                                    <small class="form-text text-muted">
+                                        Maintenez Ctrl/Cmd pour sélectionner plusieurs types
+                                    </small>
+                                    {% if form.types_evaluation.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.types_evaluation.errors[0] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.departements.label(class="form-label") }}
+                                    {{ form.departements }}
+                                    <small class="form-text text-muted">
+                                        Maintenez Ctrl/Cmd pour sélectionner plusieurs départements
+                                    </small>
+                                    {% if form.departements.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.departements.errors[0] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.type_rapport.label(class="form-label") }}
+                                    {{ form.type_rapport }}
+                                    {% if form.type_rapport.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.type_rapport.errors[0] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Options d'export -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.format_export.label(class="form-label") }}
+                                    {{ form.format_export }}
+                                    {% if form.format_export.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.format_export.errors[0] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Options d'inclusion</label>
+                                <div>
+                                    <div class="form-check">
+                                        {{ form.inclure_graphiques }}
+                                        {{ form.inclure_graphiques.label(class="form-check-label") }}
+                                    </div>
+                                    <div class="form-check">
+                                        {{ form.inclure_objectifs }}
+                                        {{ form.inclure_objectifs.label(class="form-check-label") }}
+                                    </div>
+                                    <div class="form-check">
+                                        {{ form.inclure_commentaires }}
+                                        {{ form.inclure_commentaires.label(class="form-check-label") }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bouton de génération -->
+                        <div class="text-center">
+                            {{ form.submit(class="btn btn-success btn-lg") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel d'aide et d'informations -->
+        <div class="col-md-4">
+            <!-- Types de rapports -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6><i class="fas fa-info-circle me-2"></i>Types de rapports</h6>
+                </div>
+                <div class="card-body">
+                    <dl>
+                        <dt>Synthèse générale</dt>
+                        <dd class="text-muted small">Vue d'ensemble avec statistiques principales et moyennes</dd>
+                        
+                        <dt>Rapport détaillé</dt>
+                        <dd class="text-muted small">Liste complète de toutes les évaluations avec détails</dd>
+                        
+                        <dt>Analyse statistique</dt>
+                        <dd class="text-muted small">Graphiques et analyses approfondies des performances</dd>
+                        
+                        <dt>Évolution des performances</dt>
+                        <dd class="text-muted small">Suivi temporel des scores et évolutions</dd>
+                        
+                        <dt>Suivi des objectifs</dt>
+                        <dd class="text-muted small">Rapport centré sur l'atteinte des objectifs</dd>
+                        
+                        <dt>Comparatif départements</dt>
+                        <dd class="text-muted small">Analyse comparative entre départements</dd>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Raccourcis -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6><i class="fas fa-bolt me-2"></i>Rapports prédéfinis</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary btn-sm" onclick="rapportRapide('mois')">
+                            <i class="fas fa-calendar me-2"></i>Ce mois
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm" onclick="rapportRapide('trimestre')">
+                            <i class="fas fa-calendar-week me-2"></i>Ce trimestre
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm" onclick="rapportRapide('annee')">
+                            <i class="fas fa-calendar-year me-2"></i>Cette année
+                        </button>
+                        <hr>
+                        <button class="btn btn-outline-success btn-sm" onclick="exportRapide('excel')">
+                            <i class="fas fa-file-excel me-2"></i>Export Excel rapide
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="exportRapide('pdf')">
+                            <i class="fas fa-file-pdf me-2"></i>Export PDF rapide
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Conseils -->
+            <div class="card">
+                <div class="card-header">
+                    <h6><i class="fas fa-lightbulb me-2"></i>Conseils</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled text-muted small">
+                        <li><i class="fas fa-check text-success me-2"></i>Utilisez les filtres pour cibler vos analyses</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Le format Excel permet des analyses avancées</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Le PDF est idéal pour les présentations</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Incluez les graphiques pour plus d'impact visuel</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Validation Bootstrap
+(function() {
+    'use strict';
+    window.addEventListener('load', function() {
+        var forms = document.getElementsByClassName('needs-validation');
+        var validation = Array.prototype.filter.call(forms, function(form) {
+            form.addEventListener('submit', function(event) {
+                if (form.checkValidity() === false) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    }, false);
+})();
+
+// Fonctions pour les raccourcis
+function rapportRapide(periode) {
+    const dateDebut = document.getElementById('date_debut');
+    const dateFin = document.getElementById('date_fin');
+    const today = new Date();
+    
+    switch(periode) {
+        case 'mois':
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            dateDebut.value = firstDay.toISOString().split('T')[0];
+            dateFin.value = lastDay.toISOString().split('T')[0];
+            break;
+            
+        case 'trimestre':
+            const quarter = Math.floor(today.getMonth() / 3);
+            const firstQuarter = new Date(today.getFullYear(), quarter * 3, 1);
+            const lastQuarter = new Date(today.getFullYear(), (quarter + 1) * 3, 0);
+            dateDebut.value = firstQuarter.toISOString().split('T')[0];
+            dateFin.value = lastQuarter.toISOString().split('T')[0];
+            break;
+            
+        case 'annee':
+            const firstYear = new Date(today.getFullYear(), 0, 1);
+            const lastYear = new Date(today.getFullYear(), 11, 31);
+            dateDebut.value = firstYear.toISOString().split('T')[0];
+            dateFin.value = lastYear.toISOString().split('T')[0];
+            break;
+    }
+}
+
+function exportRapide(format) {
+    document.getElementById('format_export').value = format;
+    document.getElementById('type_rapport').value = 'synthese';
+    
+    // Soumettre le formulaire
+    document.querySelector('form').submit();
+}
+</script>
+{% endblock %}

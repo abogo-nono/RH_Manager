@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Liste des absences</h2>
+<button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAbsenceModal">
+    Ajouter une absence
+</button>
+
+<a href="{{ url_for('rh.export_absences_excel') }}" class="btn btn-outline-primary me-1">
+  <i class="bi bi-file-earmark-excel"></i> Export Excel
+</a>
+
+<a href="{{ url_for('rh.export_absences_pdf') }}" target="_blank" class="btn btn-outline-danger">
+  <i class="bi bi-file-earmark-pdf"></i> Export PDF
+</a>
+
+<table class="table table-striped datatable">
+    <thead>
+        <tr>
+            <th>ID</th><th>ID Employé</th><th>Type</th><th>Début</th><th>Fin</th><th>Statut</th><th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for absence in absences %}
+        <tr>
+            <td>{{ absence.id }}</td>
+            <td>{{ absence.employee_id }}</td>
+            <td>{{ absence.type_absence }}</td>
+            <td>{{ absence.date_debut }}</td>
+            <td>{{ absence.date_fin }}</td>
+            <td>{{ absence.statut }}</td>
+            <td>
+              <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editAbsenceModal{{ absence.id }}">
+                Modifier
+              </button>
+              <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAbsenceModal{{ absence.id }}">
+                Supprimer
+              </button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Modal -->
+<div class="modal fade" id="addAbsenceModal" tabindex="-1" aria-labelledby="addAbsenceModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addAbsenceModalLabel">Ajouter une absence</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <form method="POST" action="/absences/add">
+        <div class="modal-body">
+            {{ form.hidden_tag() }}
+            <div class="mb-3">{{ form.employee_id.label }} {{ form.employee_id(class="form-control") }}</div>
+            <div class="mb-3">{{ form.type_absence.label }} {{ form.type_absence(class="form-control") }}</div>
+            <div class="mb-3">{{ form.date_debut.label }} {{ form.date_debut(class="form-control") }}</div>
+            <div class="mb-3">{{ form.date_fin.label }} {{ form.date_fin(class="form-control") }}</div>
+            <div class="mb-3">{{ form.motif.label }} {{ form.motif(class="form-control") }}</div>
+            <div class="mb-3">{{ form.justificatif.label }} {{ form.justificatif() }}</div>
+            <div class="mb-3">{{ form.statut.label }} {{ form.statut(class="form-control") }}</div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            {{ form.submit(class="btn btn-success") }}
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Modifier pour chaque absence -->
+{% for absence in absences %}
+<div class="modal fade" id="editAbsenceModal{{ absence.id }}" tabindex="-1" aria-labelledby="editAbsenceModalLabel{{ absence.id }}" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="/absences/edit/{{ absence.id }}">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editAbsenceModalLabel{{ absence.id }}">Modifier Absence</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          {{ form.hidden_tag() }}
+          <div class="mb-3">
+            <label>ID Employé</label>
+            <input type="text" name="employee_id" value="{{ absence.employee_id }}" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label>Type</label>
+            <input type="text" name="type_absence" value="{{ absence.type_absence }}" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label>Date Début</label>
+            <input type="date" name="date_debut" value="{{ absence.date_debut }}" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label>Date Fin</label>
+            <input type="date" name="date_fin" value="{{ absence.date_fin }}" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label>Motif</label>
+            <textarea name="motif" class="form-control">{{ absence.motif }}</textarea>
+          </div>
+          <div class="mb-3">
+            <label>Justificatif</label>
+            <select name="justificatif" class="form-select">
+              <option value="True" {% if absence.justificatif %}selected{% endif %}>Oui</option>
+              <option value="False" {% if not absence.justificatif %}selected{% endif %}>Non</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label>Statut</label>
+            <input type="text" name="statut" value="{{ absence.statut }}" class="form-control">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+          <button type="submit" class="btn btn-success">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+<!-- Modal Supprimer pour chaque absence -->
+{% for absence in absences %}
+<div class="modal fade" id="deleteAbsenceModal{{ absence.id }}" tabindex="-1" aria-labelledby="deleteAbsenceModalLabel{{ absence.id }}" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="/absences/delete/{{ absence.id }}">
+        <div class="modal-header">
+          <h5 class="modal-title" id="deleteAbsenceModalLabel{{ absence.id }}">Confirmer la suppression</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          Voulez-vous vraiment supprimer cette absence pour l'employé ID {{ absence.employee_id }} ?
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger">Supprimer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{% endblock %}

@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier les Heures - Présences{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête avec bouton retour -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="h4 mb-0">
+                        <i class="fas fa-edit text-primary me-2"></i>
+                        Modifier les Heures de Travail
+                    </h2>
+                    <p class="text-muted mb-0">
+                        Employé: {{ heure.employe.prenom }} {{ heure.employe.nom }} - 
+                        {{ heure.date.strftime('%d/%m/%Y') }}
+                    </p>
+                </div>
+                <a href="{{ url_for('conges_temps.gestion_heures') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Retour
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulaire de modification -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>
+                        Modification des Heures
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('conges_temps.modifier_heures', id=heure.id) }}">
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- Informations de base -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Employé</label>
+                                <input type="text" class="form-control" 
+                                       value="{{ heure.employe.prenom }} {{ heure.employe.nom }}" 
+                                       readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Date</label>
+                                {{ form.date(class="form-control", readonly=True) }}
+                            </div>
+                        </div>
+
+                        <!-- Heures de travail -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Heure d'arrivée</label>
+                                {{ form.heure_arrivee(class="form-control") }}
+                                {% if form.heure_arrivee.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.heure_arrivee.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Heure de départ</label>
+                                {{ form.heure_depart(class="form-control") }}
+                                {% if form.heure_depart.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.heure_depart.errors %}
+                                            {{ error }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Pauses -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Début pause</label>
+                                {{ form.debut_pause(class="form-control") }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Fin pause</label>
+                                {{ form.fin_pause(class="form-control") }}
+                            </div>
+                        </div>
+
+                        <!-- Statut et type -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Statut</label>
+                                {{ form.statut(class="form-select") }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Type de journée</label>
+                                {{ form.type_journee(class="form-select") }}
+                            </div>
+                        </div>
+
+                        <!-- Commentaires -->
+                        <div class="mb-3">
+                            <label class="form-label">Commentaires</label>
+                            {{ form.commentaires(class="form-control", rows="3", 
+                                                placeholder="Observations ou justifications...") }}
+                        </div>
+
+                        <!-- Boutons d'action -->
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>Enregistrer les modifications
+                            </button>
+                            <button type="button" class="btn btn-outline-danger" onclick="confirmerSuppression()">
+                                <i class="fas fa-trash me-1"></i>Supprimer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panneau d'informations -->
+        <div class="col-lg-4">
+            <!-- Calculs automatiques -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-calculator me-2"></i>
+                        Calculs Automatiques
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Heures normales:</span>
+                        <strong id="heures-normales">{{ "%.2f"|format(heure.heures_normales) }}h</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Heures supplémentaires:</span>
+                        <strong id="heures-sup">{{ "%.2f"|format(heure.heures_supplementaires) }}h</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Total:</span>
+                        <strong id="total-heures">{{ "%.2f"|format(heure.total_heures) }}h</strong>
+                    </div>
+                    {% if heure.retard_minutes > 0 %}
+                    <div class="d-flex justify-content-between text-warning">
+                        <span>Retard:</span>
+                        <strong>{{ heure.retard_minutes }} min</strong>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Historique des modifications -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        Historique
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-primary"></div>
+                            <div class="timeline-content">
+                                <h6 class="text-primary">Création</h6>
+                                <p class="mb-0 small text-muted">
+                                    {{ heure.date_creation.strftime('%d/%m/%Y %H:%M') }}
+                                </p>
+                                <p class="mb-0 small">Par: {{ heure.cree_par.username if heure.cree_par else 'Système' }}</p>
+                            </div>
+                        </div>
+                        {% if heure.date_modification %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-warning"></div>
+                            <div class="timeline-content">
+                                <h6 class="text-warning">Dernière modification</h6>
+                                <p class="mb-0 small text-muted">
+                                    {{ heure.date_modification.strftime('%d/%m/%Y %H:%M') }}
+                                </p>
+                                <p class="mb-0 small">Par: {{ heure.modifie_par.username if heure.modifie_par else 'Système' }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmation de suppression -->
+<div class="modal fade" id="modalSuppressionConfirmation" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmer la suppression</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer cette entrée d'heures ?</p>
+                <p class="text-danger"><strong>Cette action est irréversible.</strong></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form method="POST" action="{{ url_for('conges_temps.supprimer_heures', id=heure.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -37px;
+    top: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 2px #dee2e6;
+}
+
+.timeline-content h6 {
+    margin-bottom: 5px;
+    font-size: 0.9rem;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: -31px;
+    top: 6px;
+    bottom: -6px;
+    width: 2px;
+    background: #dee2e6;
+}
+</style>
+
+<script>
+function confirmerSuppression() {
+    new bootstrap.Modal(document.getElementById('modalSuppressionConfirmation')).show();
+}
+
+// Recalcul automatique des heures lors de la modification
+document.addEventListener('DOMContentLoaded', function() {
+    const heureArrivee = document.getElementById('heure_arrivee');
+    const heureDepart = document.getElementById('heure_depart');
+    const debutPause = document.getElementById('debut_pause');
+    const finPause = document.getElementById('fin_pause');
+
+    function recalculerHeures() {
+        // Ici on pourrait ajouter une logique AJAX pour recalculer en temps réel
+        // Pour l'instant, on laisse le serveur faire le calcul lors de la soumission
+    }
+
+    [heureArrivee, heureDepart, debutPause, finPause].forEach(input => {
+        if (input) {
+            input.addEventListener('change', recalculerHeures);
+        }
+    });
+});
+</script>
+{% endblock %}

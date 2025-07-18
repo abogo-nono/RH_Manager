@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+
+{% block title %}Liste des Évaluations{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-list me-2"></i>Liste des Évaluations</h2>
+            <p class="text-muted">Gestion et suivi des évaluations de performance</p>
+        </div>
+        <div>
+            <a href="{{ url_for('evaluation.dashboard') }}" class="btn btn-info">
+                <i class="fas fa-dashboard me-2"></i>Dashboard
+            </a>
+            <a href="{{ url_for('evaluation.create_evaluation') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Nouvelle Évaluation
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtres de recherche -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label for="search" class="form-label">Recherche</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ search }}" placeholder="Nom, prénom, période...">
+                </div>
+                <div class="col-md-2">
+                    <label for="statut" class="form-label">Statut</label>
+                    <select class="form-select" id="statut" name="statut">
+                        <option value="">Tous les statuts</option>
+                        {% for statut in statuts %}
+                            <option value="{{ statut }}" {% if statut == statut_filter %}selected{% endif %}>
+                                {{ statut }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="type" class="form-label">Type</label>
+                    <select class="form-select" id="type" name="type">
+                        <option value="">Tous les types</option>
+                        {% for type in types %}
+                            <option value="{{ type }}" {% if type == type_filter %}selected{% endif %}>
+                                {{ type }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="annee" class="form-label">Année</label>
+                    <select class="form-select" id="annee" name="annee">
+                        <option value="">Toutes les années</option>
+                        {% for annee in annees %}
+                            <option value="{{ annee }}" {% if annee|string == annee_filter %}selected{% endif %}>
+                                {{ annee }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="departement" class="form-label">Département</label>
+                    <select class="form-select" id="departement" name="departement">
+                        <option value="">Tous les départements</option>
+                        {% for dept in departements %}
+                            <option value="{{ dept }}" {% if dept == departement_filter %}selected{% endif %}>
+                                {{ dept }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-1 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Résultats -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-table me-2"></i>Évaluations 
+                <span class="badge bg-secondary">{{ evaluations.total }}</span>
+            </h5>
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-sm btn-outline-success" onclick="exportData('excel')">
+                    <i class="fas fa-file-excel me-1"></i>Excel
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="exportData('pdf')">
+                    <i class="fas fa-file-pdf me-1"></i>PDF
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            {% if evaluations.items %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Employé</th>
+                                <th>Poste</th>
+                                <th>Période</th>
+                                <th>Type</th>
+                                <th>Score</th>
+                                <th>Note</th>
+                                <th>Date</th>
+                                <th>Statut</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for evaluation in evaluations.items %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if evaluation.employe.photo_profil %}
+                                                <img src="{{ url_for('static', filename='uploads/employees/photos/' + evaluation.employe.photo_profil) }}" 
+                                                     class="rounded-circle me-2" width="32" height="32">
+                                            {% else %}
+                                                <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" 
+                                                     style="width: 32px; height: 32px;">
+                                                    <i class="fas fa-user text-white"></i>
+                                                </div>
+                                            {% endif %}
+                                            <div>
+                                                <strong>{{ evaluation.employe.nom }} {{ evaluation.employe.prenom or '' }}</strong>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ evaluation.employe.poste or 'N/A' }}</td>
+                                    <td>{{ evaluation.periode }}</td>
+                                    <td>
+                                        <span class="badge bg-info">{{ evaluation.type_evaluation }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <span class="me-2">{{ evaluation.score_global }}%</span>
+                                            <div class="progress" style="width: 60px; height: 6px;">
+                                                <div class="progress-bar {% if evaluation.score_global >= 80 %}bg-success{% elif evaluation.score_global >= 60 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                                     style="width: {{ evaluation.score_global }}%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% set note_class = 'success' if evaluation.note_finale == 'Excellent' 
+                                                          else 'info' if evaluation.note_finale == 'Très Bien'
+                                                          else 'warning' if evaluation.note_finale == 'Bien'
+                                                          else 'secondary' if evaluation.note_finale == 'Satisfaisant'
+                                                          else 'danger' %}
+                                        <span class="badge bg-{{ note_class }}">{{ evaluation.note_finale }}</span>
+                                    </td>
+                                    <td>{{ evaluation.date_evaluation.strftime('%d/%m/%Y') }}</td>
+                                    <td>
+                                        {% set statut_class = 'success' if evaluation.statut == 'Finalisé' 
+                                                             else 'primary' if evaluation.statut == 'Validé'
+                                                             else 'warning' if evaluation.statut == 'En cours'
+                                                             else 'secondary' %}
+                                        <span class="badge bg-{{ statut_class }}">{{ evaluation.statut }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('evaluation.detail_evaluation', id=evaluation.id) }}" 
+                                               class="btn btn-sm btn-outline-primary" title="Voir détail">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if evaluation.evaluateur_id == current_user.id or current_user.role.nom in ['Admin', 'Manager RH'] %}
+                                                <a href="{{ url_for('evaluation.edit_evaluation', id=evaluation.id) }}" 
+                                                   class="btn btn-sm btn-outline-secondary" title="Modifier">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <button class="btn btn-sm btn-outline-danger" 
+                                                        onclick="confirmDelete({{ evaluation.id }}, '{{ evaluation.employe.nom }} {{ evaluation.employe.prenom or '' }}')"
+                                                        title="Supprimer">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Aucune évaluation trouvée</h5>
+                    <p class="text-muted">Essayez de modifier vos critères de recherche ou créez une nouvelle évaluation.</p>
+                    <a href="{{ url_for('evaluation.create_evaluation') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Créer une évaluation
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmation de suppression -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmer la suppression</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer l'évaluation de <strong id="employeeName"></strong> ?</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Cette action est irréversible et supprimera également tous les critères associés.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-2"></i>Supprimer
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmDelete(evaluationId, employeName) {
+    document.getElementById('employeeName').textContent = employeName;
+    document.getElementById('deleteForm').action = `/evaluations/${evaluationId}/delete`;
+    
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    deleteModal.show();
+}
+
+function exportData(format) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('export', format);
+    
+    const url = `{{ url_for('evaluation.rapports') }}?${params.toString()}`;
+    window.open(url, '_blank');
+}
+</script>
+{% endblock %}

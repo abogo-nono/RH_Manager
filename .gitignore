@@ -1,0 +1,27 @@
+# Environnement Python
+venv/
+
+# Cache Python
+__pycache__/
+*.pyc
+
+# Fichiers de config secrets
+.env
+
+# Fichiers uploadés par les utilisateurs
+app/static/uploads/
+
+# Logs éventuels
+*.log
+
+# Configs locales éditeur
+.vscode/
+.idea/
+
+# Fichiers de sauvegarde
+*.bak
+*.swp
+
+# Fichiers de base de données SQLite (si jamais tu en as)
+*.sqlite3
+*.db

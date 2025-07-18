@@ -1,0 +1,760 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête avec photo et infos principales -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-2 text-center">
+                            {% if employe.photo_profil %}
+                                <img src="{{ url_for('static', filename='uploads/employees/photos/' + employe.photo_profil) }}" 
+                                     class="img-fluid rounded-circle" style="width: 120px; height: 120px; object-fit: cover;" 
+                                     alt="Photo de {{ employe.nom_complet }}">
+                            {% else %}
+                                <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center" 
+                                     style="width: 120px; height: 120px; margin: 0 auto;">
+                                    <i class="bi bi-person-fill text-white" style="font-size: 3rem;"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <h2 class="mb-1">{{ employe.nom_complet or (employe.nom + ' ' + (employe.prenom or '')) }}</h2>
+                            <p class="text-muted mb-2">{{ employe.poste }} - {{ employe.departement }}</p>
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <p class="mb-1"><strong>Email:</strong> {{ employe.email or 'Non renseigné' }}</p>
+                                    <p class="mb-1"><strong>Téléphone:</strong> {{ employe.telephone or 'Non renseigné' }}</p>
+                                    <p class="mb-1"><strong>Statut:</strong> 
+                                        <span class="badge bg-{{ 'success' if employe.statut == 'Actif' else 'secondary' }}">
+                                            {{ employe.statut }}
+                                        </span>
+                                    </p>
+                                </div>
+                                <div class="col-sm-6">
+                                    <p class="mb-1"><strong>Date d'embauche:</strong> {{ employe.date_embauche.strftime('%d/%m/%Y') if employe.date_embauche else 'Non renseigné' }}</p>
+                                    <p class="mb-1"><strong>Ancienneté:</strong> {{ employe.anciennete_annees }} ans</p>
+                                    <p class="mb-1"><strong>Type de contrat:</strong> {{ employe.type_contrat or 'Non renseigné' }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#editEmployeModal">
+                                <i class="bi bi-pencil me-1"></i>Modifier
+                            </button>
+                            <button class="btn btn-info me-2" data-bs-toggle="modal" data-bs-target="#addDocumentModal">
+                                <i class="bi bi-file-plus me-1"></i>Ajouter document
+                            </button>
+                            <a href="{{ url_for('rh.list_employes') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-1"></i>Retour
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Onglets pour les différentes sections -->
+    <ul class="nav nav-tabs" id="employeeTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal" type="button" role="tab">
+                <i class="bi bi-person me-1"></i>Informations personnelles
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="professional-tab" data-bs-toggle="tab" data-bs-target="#professional" type="button" role="tab">
+                <i class="bi bi-briefcase me-1"></i>Informations professionnelles
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents" type="button" role="tab">
+                <i class="bi bi-files me-1"></i>Documents
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab">
+                <i class="bi bi-clock-history me-1"></i>Historique
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content mt-3" id="employeeTabsContent">
+        <!-- Onglet Informations personnelles -->
+        <div class="tab-pane fade show active" id="personal" role="tabpanel">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Informations de base</h5>
+                            <table class="table table-borderless">
+                                <tr><td><strong>Nom complet:</strong></td><td>{{ employe.nom_complet or (employe.nom + ' ' + (employe.prenom or '')) }}</td></tr>
+                                <tr><td><strong>Date de naissance:</strong></td><td>{{ employe.date_naissance.strftime('%d/%m/%Y') if employe.date_naissance else 'Non renseigné' }}</td></tr>
+                                <tr><td><strong>Âge:</strong></td><td>{{ employe.age }} ans</td></tr>
+                                <tr><td><strong>Lieu de naissance:</strong></td><td>{{ employe.lieu_naissance or 'Non renseigné' }}</td></tr>
+                                <tr><td><strong>Sexe:</strong></td><td>{{ employe.sexe or 'Non renseigné' }}</td></tr>
+                                <tr><td><strong>Nationalité:</strong></td><td>{{ employe.nationalite or 'Non renseigné' }}</td></tr>
+                                <tr><td><strong>Situation matrimoniale:</strong></td><td>{{ employe.situation_matrimoniale or 'Non renseigné' }}</td></tr>
+                                <tr><td><strong>Nombre d'enfants:</strong></td><td>{{ employe.nombre_enfants or 0 }}</td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Contact et adresse</h5>
+                            <table class="table table-borderless">
+                                <tr><td><strong>Email:</strong></td><td>{{ employe.email or 'Non renseigné' }}</td></tr>
+                                <tr><td><strong>Téléphone:</strong></td><td>{{ employe.telephone or 'Non renseigné' }}</td></tr>
+                                <tr><td><strong>Téléphone d'urgence:</strong></td><td>{{ employe.telephone_urgence or 'Non renseigné' }}</td></tr>
+                                <tr><td><strong>Adresse:</strong></td><td>{{ employe.adresse or 'Non renseigné' }}</td></tr>
+                                <tr><td><strong>Ville:</strong></td><td>{{ employe.ville or 'Non renseigné' }}</td></tr>
+                            </table>
+                            
+                            <h5 class="mt-4">Documents d'identité</h5>
+                            <table class="table table-borderless">
+                                <tr><td><strong>CNI:</strong></td><td>{{ employe.numero_cni or 'Non renseigné' }}</td></tr>
+                                <tr><td><strong>CNPS:</strong></td><td>{{ employe.numero_cnps or 'Non renseigné' }}</td></tr>
+                                <tr><td><strong>CRTV:</strong></td><td>{{ employe.numero_crtv or 'Non renseigné' }}</td></tr>
+                                <tr><td><strong>Compte bancaire:</strong></td><td>{{ employe.numero_compte_bancaire or 'Non renseigné' }}</td></tr>
+                                <tr><td><strong>Banque:</strong></td><td>{{ employe.banque or 'Non renseigné' }}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Onglet Informations professionnelles -->
+        <div class="tab-pane fade" id="professional" role="tabpanel">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Poste et hiérarchie</h5>
+                            <table class="table table-borderless">
+                                <tr><td><strong>Poste:</strong></td><td>{{ employe.poste or 'Non renseigné' }}</td></tr>
+                                <tr><td><strong>Département:</strong></td><td>{{ employe.departement or 'Non renseigné' }}</td></tr>
+                                <tr><td><strong>Manager:</strong></td><td>{{ employe.manager.nom_complet if employe.manager else 'Aucun' }}</td></tr>
+                                <tr><td><strong>Statut:</strong></td><td><span class="badge bg-{{ 'success' if employe.statut == 'Actif' else 'secondary' }}">{{ employe.statut }}</span></td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Contrat et rémunération</h5>
+                            <table class="table table-borderless">
+                                <tr><td><strong>Type de contrat:</strong></td><td>{{ employe.type_contrat or 'Non renseigné' }}</td></tr>
+                                <tr><td><strong>Date d'embauche:</strong></td><td>{{ employe.date_embauche.strftime('%d/%m/%Y') if employe.date_embauche else 'Non renseigné' }}</td></tr>
+                                <tr><td><strong>Date fin de contrat:</strong></td><td>{{ employe.date_fin_contrat.strftime('%d/%m/%Y') if employe.date_fin_contrat else 'Non définie' }}</td></tr>
+                                <tr><td><strong>Ancienneté:</strong></td><td>{{ employe.anciennete_annees }} ans ({{ employe.anciennete_jours }} jours)</td></tr>
+                                <tr><td><strong>Salaire de base:</strong></td><td>{{ "{:,.0f}".format(employe.salaire_base) + ' FCFA' if employe.salaire_base else 'Non renseigné' }}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Onglet Documents -->
+        <div class="tab-pane fade" id="documents" role="tabpanel">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Documents de l'employé</h5>
+                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addDocumentModal">
+                            <i class="bi bi-plus me-1"></i>Ajouter un document
+                        </button>
+                    </div>
+                    
+                    {% if employe.documents %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Nom du document</th>
+                                        <th>Type</th>
+                                        <th>Date d'ajout</th>
+                                        <th>Ajouté par</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for doc in employe.documents %}
+                                    <tr>
+                                        <td>{{ doc.nom_document }}</td>
+                                        <td><span class="badge bg-info">{{ doc.type_document }}</span></td>
+                                        <td>{{ doc.date_upload.strftime('%d/%m/%Y à %H:%M') }}</td>
+                                        <td>{{ doc.uploader.nom_complet if doc.uploader else 'Inconnu' }}</td>
+                                        <td>
+                                            <a href="{{ url_for('rh.download_employee_document', document_id=doc.id) }}" 
+                                               class="btn btn-sm btn-outline-primary me-1" title="Télécharger">
+                                                <i class="bi bi-download"></i>
+                                            </a>
+                                            <button class="btn btn-sm btn-outline-secondary me-1 btn-edit-doc" 
+                                                    data-doc-id="{{ doc.id }}"
+                                                    data-doc-name="{{ doc.nom_document }}"
+                                                    data-doc-type="{{ doc.type_document }}"
+                                                    title="Modifier">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger btn-delete-doc" 
+                                                    data-doc-id="{{ doc.id }}"
+                                                    data-doc-name="{{ doc.nom_document }}"
+                                                    data-delete-url="{{ url_for('rh.delete_employee_document', document_id=doc.id) }}"
+                                                    title="Supprimer">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted">
+                            <i class="bi bi-files" style="font-size: 3rem;"></i>
+                            <p>Aucun document enregistré pour cet employé.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Onglet Historique -->
+        <div class="tab-pane fade" id="history" role="tabpanel">
+            <div class="card">
+                <div class="card-body">
+                    <h5>Historique des modifications</h5>
+                    
+                    {% if historique %}
+                        <div class="timeline">
+                            {% for entry in historique %}
+                            <div class="timeline-item mb-3">
+                                <div class="d-flex">
+                                    <div class="flex-shrink-0">
+                                        <span class="badge bg-{{ 'success' if entry.action == 'CREATE' else 'primary' if entry.action == 'UPDATE' else 'danger' }}">
+                                            {{ entry.action }}
+                                        </span>
+                                    </div>
+                                    <div class="flex-grow-1 ms-3">
+                                        <h6 class="mb-1">{{ entry.champ_modifie or 'Modification générale' }}</h6>
+                                        {% if entry.ancienne_valeur and entry.nouvelle_valeur %}
+                                            <p class="mb-1 small">
+                                                <strong>Avant:</strong> {{ entry.ancienne_valeur }}<br>
+                                                <strong>Après:</strong> {{ entry.nouvelle_valeur }}
+                                            </p>
+                                        {% endif %}
+                                        <small class="text-muted">
+                                            Par {{ entry.user.nom_complet if entry.user else 'Utilisateur inconnu' }} 
+                                            le {{ entry.date_modification.strftime('%d/%m/%Y à %H:%M') }}
+                                        </small>
+                                        {% if entry.commentaire %}
+                                            <p class="mb-0 small"><em>{{ entry.commentaire }}</em></p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted">
+                            <i class="bi bi-clock-history" style="font-size: 3rem;"></i>
+                            <p>Aucun historique disponible.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour modifier l'employé -->
+<div class="modal fade" id="editEmployeModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Modifier l'employé</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('rh.edit_employe', id=employe.id) }}" enctype="multipart/form-data" id="editEmployeeForm">
+                <div class="modal-body">
+                    <div class="row">
+                        <!-- Informations personnelles -->
+                        <div class="col-md-6">
+                            <h6 class="text-primary mb-3">Informations personnelles</h6>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Nom *</label>
+                                <input type="text" class="form-control" name="nom" value="{{ employe.nom }}" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Prénom</label>
+                                <input type="text" class="form-control" name="prenom" value="{{ employe.prenom or '' }}">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Date de naissance</label>
+                                <input type="date" class="form-control" name="date_naissance" value="{{ employe.date_naissance.strftime('%Y-%m-%d') if employe.date_naissance else '' }}">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Lieu de naissance</label>
+                                <input type="text" class="form-control" name="lieu_naissance" value="{{ employe.lieu_naissance or '' }}">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Sexe</label>
+                                <select class="form-control" name="sexe">
+                                    <option value="">Sélectionner...</option>
+                                    <option value="M" {{ 'selected' if employe.sexe == 'M' else '' }}>Masculin</option>
+                                    <option value="F" {{ 'selected' if employe.sexe == 'F' else '' }}>Féminin</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Nationalité</label>
+                                <input type="text" class="form-control" name="nationalite" value="{{ employe.nationalite or 'Camerounaise' }}">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Situation matrimoniale</label>
+                                <select class="form-control" name="situation_matrimoniale">
+                                    <option value="">Sélectionner...</option>
+                                    <option value="Célibataire" {{ 'selected' if employe.situation_matrimoniale == 'Célibataire' else '' }}>Célibataire</option>
+                                    <option value="Marié(e)" {{ 'selected' if employe.situation_matrimoniale == 'Marié(e)' else '' }}>Marié(e)</option>
+                                    <option value="Divorcé(e)" {{ 'selected' if employe.situation_matrimoniale == 'Divorcé(e)' else '' }}>Divorcé(e)</option>
+                                    <option value="Veuf(ve)" {{ 'selected' if employe.situation_matrimoniale == 'Veuf(ve)' else '' }}>Veuf(ve)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Nombre d'enfants</label>
+                                <input type="number" class="form-control" name="nombre_enfants" value="{{ employe.nombre_enfants or 0 }}" min="0">
+                            </div>
+                        </div>
+                        
+                        <!-- Informations de contact et professionnelles -->
+                        <div class="col-md-6">
+                            <h6 class="text-primary mb-3">Contact et professionnel</h6>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" name="email" value="{{ employe.email or '' }}">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Téléphone</label>
+                                <input type="text" class="form-control" name="telephone" value="{{ employe.telephone or '' }}">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Téléphone d'urgence</label>
+                                <input type="text" class="form-control" name="telephone_urgence" value="{{ employe.telephone_urgence or '' }}">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Adresse</label>
+                                <textarea class="form-control" name="adresse" rows="2">{{ employe.adresse or '' }}</textarea>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Ville</label>
+                                <input type="text" class="form-control" name="ville" value="{{ employe.ville or '' }}">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Poste *</label>
+                                <input type="text" class="form-control" name="poste" value="{{ employe.poste }}" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Département *</label>
+                                <select class="form-control" name="departement" required>
+                                    <option value="">Sélectionner...</option>
+                                    <option value="Direction" {{ 'selected' if employe.departement == 'Direction' else '' }}>Direction</option>
+                                    <option value="RH" {{ 'selected' if employe.departement == 'RH' else '' }}>Ressources Humaines</option>
+                                    <option value="Finance" {{ 'selected' if employe.departement == 'Finance' else '' }}>Finance</option>
+                                    <option value="IT" {{ 'selected' if employe.departement == 'IT' else '' }}>Informatique</option>
+                                    <option value="Commercial" {{ 'selected' if employe.departement == 'Commercial' else '' }}>Commercial</option>
+                                    <option value="Production" {{ 'selected' if employe.departement == 'Production' else '' }}>Production</option>
+                                    <option value="Marketing" {{ 'selected' if employe.departement == 'Marketing' else '' }}>Marketing</option>
+                                    <option value="Support" {{ 'selected' if employe.departement == 'Support' else '' }}>Support</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Manager</label>
+                                <select class="form-control" name="manager_id" id="manager_select">
+                                    <option value="0">Aucun manager</option>
+                                    <!-- Les options seront remplies par JavaScript -->
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Onglets pour informations supplémentaires -->
+                    <ul class="nav nav-tabs mt-4" id="editTabs" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active" id="contrat-tab" data-bs-toggle="tab" data-bs-target="#contrat-content" type="button">Contrat</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents-content" type="button">Documents</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" id="administratif-tab" data-bs-toggle="tab" data-bs-target="#administratif-content" type="button">Administratif</button>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content mt-3">
+                        <!-- Onglet Contrat -->
+                        <div class="tab-pane fade show active" id="contrat-content">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Type de contrat</label>
+                                        <select class="form-control" name="type_contrat">
+                                            <option value="">Sélectionner...</option>
+                                            <option value="CDI" {{ 'selected' if employe.type_contrat == 'CDI' else '' }}>CDI</option>
+                                            <option value="CDD" {{ 'selected' if employe.type_contrat == 'CDD' else '' }}>CDD</option>
+                                            <option value="Stage" {{ 'selected' if employe.type_contrat == 'Stage' else '' }}>Stage</option>
+                                            <option value="Freelance" {{ 'selected' if employe.type_contrat == 'Freelance' else '' }}>Freelance</option>
+                                            <option value="Consultant" {{ 'selected' if employe.type_contrat == 'Consultant' else '' }}>Consultant</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Date d'embauche</label>
+                                        <input type="date" class="form-control" name="date_embauche" value="{{ employe.date_embauche.strftime('%Y-%m-%d') if employe.date_embauche else '' }}">
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Date de fin de contrat</label>
+                                        <input type="date" class="form-control" name="date_fin_contrat" value="{{ employe.date_fin_contrat.strftime('%Y-%m-%d') if employe.date_fin_contrat else '' }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Salaire de base (FCFA)</label>
+                                        <input type="number" class="form-control" name="salaire_base" value="{{ employe.salaire_base or '' }}" step="1000">
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Statut</label>
+                                        <select class="form-control" name="statut">
+                                            <option value="Actif" {{ 'selected' if employe.statut == 'Actif' else '' }}>Actif</option>
+                                            <option value="Inactif" {{ 'selected' if employe.statut == 'Inactif' else '' }}>Inactif</option>
+                                            <option value="Suspendu" {{ 'selected' if employe.statut == 'Suspendu' else '' }}>Suspendu</option>
+                                            <option value="En congé" {{ 'selected' if employe.statut == 'En congé' else '' }}>En congé</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Onglet Documents -->
+                        <div class="tab-pane fade" id="documents-content">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Photo de profil</label>
+                                        <input type="file" class="form-control" name="photo_profil" accept="image/*">
+                                        <div class="form-text">Formats: JPG, PNG, JPEG</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">CV</label>
+                                        <input type="file" class="form-control" name="cv_file" accept=".pdf,.doc,.docx">
+                                        <div class="form-text">Formats: PDF, DOC, DOCX</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Contrat</label>
+                                        <input type="file" class="form-control" name="contrat_file" accept=".pdf,.doc,.docx">
+                                        <div class="form-text">Formats: PDF, DOC, DOCX</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Onglet Administratif -->
+                        <div class="tab-pane fade" id="administratif-content">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Numéro CNI</label>
+                                        <input type="text" class="form-control" name="numero_cni" value="{{ employe.numero_cni or '' }}">
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Numéro CNPS</label>
+                                        <input type="text" class="form-control" name="numero_cnps" value="{{ employe.numero_cnps or '' }}">
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Numéro CRTV</label>
+                                        <input type="text" class="form-control" name="numero_crtv" value="{{ employe.numero_crtv or '' }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Numéro de compte bancaire</label>
+                                        <input type="text" class="form-control" name="numero_compte_bancaire" value="{{ employe.numero_compte_bancaire or '' }}">
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Banque</label>
+                                        <input type="text" class="form-control" name="banque" value="{{ employe.banque or '' }}">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour ajouter un document -->
+<div class="modal fade" id="addDocumentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ajouter un document</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('rh.add_employee_document', employee_id=employe.id) }}" enctype="multipart/form-data">
+                <div class="modal-body">
+                    {{ document_form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        {{ document_form.nom_document.label(class="form-label") }}
+                        {{ document_form.nom_document(class="form-control") }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ document_form.type_document.label(class="form-label") }}
+                        {{ document_form.type_document(class="form-control") }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ document_form.fichier.label(class="form-label") }}
+                        {{ document_form.fichier(class="form-control") }}
+                        <div class="form-text">Formats acceptés: PDF, DOC, DOCX, JPG, PNG, JPEG</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    {{ document_form.submit(class="btn btn-primary") }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour éditer un document -->
+<div class="modal fade" id="editDocumentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Modifier le document</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="editDocumentForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nom du document</label>
+                        <input type="text" class="form-control" name="nom_document" id="edit_nom_document" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Type de document</label>
+                        <select class="form-control" name="type_document" id="edit_type_document" required>
+                            <option value="CV">CV</option>
+                            <option value="Contrat">Contrat</option>
+                            <option value="Diplôme">Diplôme</option>
+                            <option value="Certificat">Certificat</option>
+                            <option value="Attestation">Attestation</option>
+                            <option value="Rapport">Rapport</option>
+                            <option value="Autre">Autre</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmation de suppression -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmation de suppression</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer cet élément ? Cette action est irréversible.</p>
+                <p class="text-muted" id="deleteItemName"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form method="POST" id="deleteForm" class="d-inline">
+                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Charger les managers pour le select
+    loadManagers();
+    
+    // Gestion de l'édition de documents avec délégation d'événements
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.btn-edit-doc')) {
+            const btn = e.target.closest('.btn-edit-doc');
+            const docId = btn.dataset.docId;
+            const docName = btn.dataset.docName;
+            const docType = btn.dataset.docType;
+            editDocument(docId, docName, docType);
+        }
+        
+        if (e.target.closest('.btn-delete-doc')) {
+            const btn = e.target.closest('.btn-delete-doc');
+            const docName = btn.dataset.docName;
+            const deleteUrl = btn.dataset.deleteUrl;
+            confirmDelete(deleteUrl, docName, 'Document');
+        }
+    });
+    
+    // Gestion de l'édition de documents
+    window.editDocument = function(documentId, nom, type) {
+        document.getElementById('edit_nom_document').value = nom;
+        document.getElementById('edit_type_document').value = type;
+        document.getElementById('editDocumentForm').action = 
+            `{{ url_for('rh.edit_employee_document', document_id=0) }}`.replace('0', documentId);
+        new bootstrap.Modal(document.getElementById('editDocumentModal')).show();
+    };
+    
+    // Gestion de la suppression
+    window.confirmDelete = function(url, itemName, itemType = 'cet élément') {
+        document.getElementById('deleteItemName').textContent = `${itemType}: ${itemName}`;
+        document.getElementById('deleteForm').action = url;
+        new bootstrap.Modal(document.getElementById('deleteConfirmModal')).show();
+    };
+    
+    // Fonction pour charger les managers
+    function loadManagers() {
+        fetch(`{{ url_for('rh.get_employe_json', id=employe.id) }}`)
+            .then(response => response.json())
+            .then(data => {
+                const managerSelect = document.getElementById('manager_select');
+                if (managerSelect) {
+                    managerSelect.innerHTML = '<option value="0">Aucun manager</option>';
+                    
+                    data.managers.forEach(manager => {
+                        const option = document.createElement('option');
+                        option.value = manager.id;
+                        option.textContent = manager.nom_complet;
+                        if (manager.id === data.manager_id) {
+                            option.selected = true;
+                        }
+                        managerSelect.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => console.error('Erreur lors du chargement des managers:', error));
+    }
+    
+    // Gestion du téléchargement de documents
+    window.downloadDocument = function(documentId) {
+        window.open(`{{ url_for('rh.download_employee_document', document_id=0) }}`.replace('0', documentId), '_blank');
+    };
+    
+    // Preview des images avant upload
+    const photoInput = document.querySelector('input[name="photo_profil"]');
+    if (photoInput) {
+        photoInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    // Créer ou mettre à jour le preview
+                    let preview = document.getElementById('photo-preview');
+                    if (!preview) {
+                        preview = document.createElement('img');
+                        preview.id = 'photo-preview';
+                        preview.className = 'img-thumbnail mt-2';
+                        preview.style.maxWidth = '100px';
+                        preview.style.maxHeight = '100px';
+                        photoInput.parentNode.appendChild(preview);
+                    }
+                    preview.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+    
+    // Validation du formulaire d'édition
+    const editForm = document.getElementById('editEmployeeForm');
+    if (editForm) {
+        editForm.addEventListener('submit', function(e) {
+            const nom = editForm.querySelector('input[name="nom"]').value.trim();
+            const poste = editForm.querySelector('input[name="poste"]').value.trim();
+            const departement = editForm.querySelector('select[name="departement"]').value;
+            
+            if (!nom || !poste || !departement) {
+                e.preventDefault();
+                alert('Veuillez remplir tous les champs obligatoires (Nom, Poste, Département)');
+                return false;
+            }
+        });
+    }
+});
+</script>
+
+<style>
+.timeline-item {
+    border-left: 2px solid #dee2e6;
+    padding-left: 1rem;
+    margin-left: 1rem;
+}
+
+.document-item {
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    transition: all 0.2s;
+}
+
+.document-item:hover {
+    border-color: #0d6efd;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.nav-tabs .nav-link.active {
+    background-color: var(--bs-primary);
+    color: white;
+    border-color: var(--bs-primary);
+}
+
+.badge-file-type {
+    font-size: 0.75em;
+}
+</style>
+
+{% endblock %}

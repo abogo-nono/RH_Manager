@@ -1,0 +1,437 @@
+<!-- Onglet Calendrier -->
+<div class="tab-pane fade {% if active_tab == 'calendrier' %}show active{% endif %}" id="calendrier">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5>Calendrier des congés</h5>
+    <div>
+      <button class="btn btn-outline-primary me-2" onclick="vueMois()">
+        <i class="bi bi-calendar-month"></i> Mois
+      </button>
+      <button class="btn btn-outline-primary me-2" onclick="vueAnnee()">
+        <i class="bi bi-calendar-year"></i> Année
+      </button>
+      <button class="btn btn-outline-primary" onclick="exportCalendrier()">
+        <i class="bi bi-download"></i> Export
+      </button>
+    </div>
+  </div>
+
+  <!-- Contrôles de navigation -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3 align-items-center">
+        <div class="col-md-4">
+          <div class="input-group">
+            <button class="btn btn-outline-secondary" onclick="moisPrecedent()">
+              <i class="bi bi-chevron-left"></i>
+            </button>
+            <input type="month" class="form-control text-center" id="moisCourant" onchange="changerMois()">
+            <button class="btn btn-outline-secondary" onclick="moisSuivant()">
+              <i class="bi bi-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <select class="form-select" id="filtreService" onchange="filtrerCalendrier()">
+            <option value="">Tous les services</option>
+            {% for service in services %}
+            <option value="{{ service }}">{{ service }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <select class="form-select" id="filtreTypeCalendrier" onchange="filtrerCalendrier()">
+            <option value="">Tous les types</option>
+            {% for type_conge in types_conges %}
+            <option value="{{ type_conge.code }}">{{ type_conge.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Légende -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <h6>Légende:</h6>
+      <div class="row">
+        {% for type_conge in types_conges %}
+        <div class="col-auto mb-2">
+          <span class="badge me-1" style="background-color: {{ type_conge.couleur }};">●</span>
+          {{ type_conge.nom }}
+        </div>
+        {% endfor %}
+        <div class="col-auto mb-2">
+          <span class="badge bg-light text-dark me-1 border">●</span>
+          Jour férié
+        </div>
+        <div class="col-auto mb-2">
+          <span class="badge bg-secondary me-1">●</span>
+          Weekend
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Calendrier -->
+  <div class="card">
+    <div class="card-body">
+      <div id="calendrierContainer">
+        <!-- Vue mensuelle -->
+        <div id="vueCalendrierMois">
+          <table class="table table-bordered calendar-table">
+            <thead>
+              <tr class="table-dark">
+                <th width="14.28%">Lundi</th>
+                <th width="14.28%">Mardi</th>
+                <th width="14.28%">Mercredi</th>
+                <th width="14.28%">Jeudi</th>
+                <th width="14.28%">Vendredi</th>
+                <th width="14.28%" class="weekend">Samedi</th>
+                <th width="14.28%" class="weekend">Dimanche</th>
+              </tr>
+            </thead>
+            <tbody id="calendrierBody">
+              <!-- Généré dynamiquement -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Vue annuelle -->
+        <div id="vueCalendrierAnnee" style="display: none;">
+          <div class="row" id="calendrierAnneeContainer">
+            <!-- Généré dynamiquement -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Statistiques du mois -->
+  <div class="row mt-3">
+    <div class="col-md-3">
+      <div class="card text-center border-primary">
+        <div class="card-body">
+          <h5 class="text-primary" id="statTotalConges">0</h5>
+          <small class="text-muted">Total congés</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center border-success">
+        <div class="card-body">
+          <h5 class="text-success" id="statEmployesEnConge">0</h5>
+          <small class="text-muted">Employés en congé</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center border-warning">
+        <div class="card-body">
+          <h5 class="text-warning" id="statJoursOuvrables">0</h5>
+          <small class="text-muted">Jours ouvrables</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center border-info">
+        <div class="card-body">
+          <h5 class="text-info" id="statTauxAbsence">0%</h5>
+          <small class="text-muted">Taux d'absence</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Détail jour -->
+<div class="modal fade" id="modalDetailJour" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalDetailJourTitle">Détail du jour</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="detailJourContent">
+        <!-- Contenu chargé dynamiquement -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.calendar-table th.weekend {
+  background-color: #f8f9fa !important;
+  color: #6c757d;
+}
+
+.calendar-day {
+  height: 120px;
+  vertical-align: top;
+  position: relative;
+  padding: 5px;
+  border: 1px solid #dee2e6;
+}
+
+.calendar-day.weekend {
+  background-color: #f8f9fa;
+}
+
+.calendar-day.today {
+  background-color: #fff3cd;
+  border-color: #ffc107;
+}
+
+.calendar-day.other-month {
+  background-color: #f8f9fa;
+  color: #adb5bd;
+}
+
+.calendar-day-number {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.calendar-conge-item {
+  display: block;
+  padding: 1px 4px;
+  margin-bottom: 1px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  text-decoration: none;
+  color: white;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-conge-item:hover {
+  opacity: 0.8;
+  color: white;
+}
+
+.calendar-month-mini {
+  font-size: 0.8rem;
+}
+
+.calendar-month-mini .calendar-day {
+  height: 30px;
+  padding: 2px;
+}
+
+.calendar-month-mini .calendar-day-number {
+  font-size: 0.7rem;
+  margin-bottom: 2px;
+}
+
+.calendar-month-mini .calendar-conge-item {
+  font-size: 0.6rem;
+  padding: 0 2px;
+  margin-bottom: 0;
+}
+</style>
+
+<script>
+let currentDate = new Date();
+let congesData = [];
+let joursFeriers = [];
+
+// Initialisation
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('moisCourant').value = formatMoisInput(currentDate);
+  chargerDonneesCalendrier();
+});
+
+function formatMoisInput(date) {
+  return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+}
+
+function chargerDonneesCalendrier() {
+  const mois = currentDate.getMonth() + 1;
+  const annee = currentDate.getFullYear();
+  
+  fetch(`{{ url_for('conges_temps.api_calendrier_data') }}?mois=${mois}&annee=${annee}`)
+    .then(response => response.json())
+    .then(data => {
+      congesData = data.conges;
+      joursFeriers = data.jours_feriers;
+      genererCalendrierMois();
+      mettreAJourStatistiques();
+    });
+}
+
+function genererCalendrierMois() {
+  const tbody = document.getElementById('calendrierBody');
+  tbody.innerHTML = '';
+  
+  const premierJour = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+  const dernierJour = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+  
+  // Ajuster pour commencer le lundi
+  const premierLundi = new Date(premierJour);
+  premierLundi.setDate(premierJour.getDate() - (premierJour.getDay() + 6) % 7);
+  
+  let dateActuelle = new Date(premierLundi);
+  
+  while (dateActuelle <= dernierJour || dateActuelle.getDay() !== 1) {
+    const semaine = document.createElement('tr');
+    
+    for (let j = 0; j < 7; j++) {
+      const cellule = document.createElement('td');
+      cellule.className = 'calendar-day';
+      
+      const dateStr = dateActuelle.toISOString().split('T')[0];
+      const estWeekend = dateActuelle.getDay() === 0 || dateActuelle.getDay() === 6;
+      const estAutreMois = dateActuelle.getMonth() !== currentDate.getMonth();
+      const estAujourdhui = dateStr === new Date().toISOString().split('T')[0];
+      
+      if (estWeekend) cellule.classList.add('weekend');
+      if (estAutreMois) cellule.classList.add('other-month');
+      if (estAujourdhui) cellule.classList.add('today');
+      
+      cellule.onclick = () => afficherDetailJour(dateStr);
+      
+      // Numéro du jour
+      const numeroJour = document.createElement('div');
+      numeroJour.className = 'calendar-day-number';
+      numeroJour.textContent = dateActuelle.getDate();
+      cellule.appendChild(numeroJour);
+      
+      // Jour férié
+      if (joursFeriers.includes(dateStr)) {
+        const jourFerie = document.createElement('div');
+        jourFerie.className = 'calendar-conge-item';
+        jourFerie.style.backgroundColor = '#6c757d';
+        jourFerie.textContent = 'Jour férié';
+        cellule.appendChild(jourFerie);
+      }
+      
+      // Congés
+      const congesJour = congesData.filter(conge => 
+        dateStr >= conge.date_debut && dateStr <= conge.date_fin
+      );
+      
+      congesJour.forEach(conge => {
+        const elementConge = document.createElement('a');
+        elementConge.className = 'calendar-conge-item';
+        elementConge.style.backgroundColor = conge.couleur || '#007bff';
+        elementConge.textContent = conge.employe_nom;
+        elementConge.title = `${conge.employe_nom} - ${conge.type_nom}`;
+        elementConge.href = '#';
+        elementConge.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          voirDetailConge(conge.id);
+        };
+        cellule.appendChild(elementConge);
+      });
+      
+      semaine.appendChild(cellule);
+      
+      dateActuelle.setDate(dateActuelle.getDate() + 1);
+    }
+    
+    tbody.appendChild(semaine);
+    
+    if (dateActuelle.getMonth() > currentDate.getMonth() && dateActuelle.getDay() === 1) {
+      break;
+    }
+  }
+}
+
+function genererCalendrierAnnee() {
+  const container = document.getElementById('calendrierAnneeContainer');
+  container.innerHTML = '';
+  
+  for (let mois = 0; mois < 12; mois++) {
+    const colonne = document.createElement('div');
+    colonne.className = 'col-md-3 mb-3';
+    
+    const carte = document.createElement('div');
+    carte.className = 'card';
+    
+    const entete = document.createElement('div');
+    entete.className = 'card-header text-center';
+    entete.textContent = new Date(currentDate.getFullYear(), mois, 1).toLocaleDateString('fr-FR', { month: 'long' });
+    
+    const corps = document.createElement('div');
+    corps.className = 'card-body p-1';
+    
+    // Générer mini calendrier pour le mois
+    const table = document.createElement('table');
+    table.className = 'table table-sm calendar-month-mini mb-0';
+    
+    // ... logique similaire mais en mini
+    
+    corps.appendChild(table);
+    carte.appendChild(entete);
+    carte.appendChild(corps);
+    colonne.appendChild(carte);
+    container.appendChild(colonne);
+  }
+}
+
+function moisPrecedent() {
+  currentDate.setMonth(currentDate.getMonth() - 1);
+  document.getElementById('moisCourant').value = formatMoisInput(currentDate);
+  chargerDonneesCalendrier();
+}
+
+function moisSuivant() {
+  currentDate.setMonth(currentDate.getMonth() + 1);
+  document.getElementById('moisCourant').value = formatMoisInput(currentDate);
+  chargerDonneesCalendrier();
+}
+
+function changerMois() {
+  const nouvelleDateStr = document.getElementById('moisCourant').value;
+  const [annee, mois] = nouvelleDateStr.split('-');
+  currentDate = new Date(parseInt(annee), parseInt(mois) - 1, 1);
+  chargerDonneesCalendrier();
+}
+
+function vueMois() {
+  document.getElementById('vueCalendrierMois').style.display = 'block';
+  document.getElementById('vueCalendrierAnnee').style.display = 'none';
+}
+
+function vueAnnee() {
+  document.getElementById('vueCalendrierMois').style.display = 'none';
+  document.getElementById('vueCalendrierAnnee').style.display = 'block';
+  genererCalendrierAnnee();
+}
+
+function filtrerCalendrier() {
+  chargerDonneesCalendrier();
+}
+
+function afficherDetailJour(date) {
+  fetch(`{{ url_for('conges_temps.api_detail_jour') }}?date=${date}`)
+    .then(response => response.text())
+    .then(html => {
+      document.getElementById('modalDetailJourTitle').textContent = `Détail du ${new Date(date).toLocaleDateString('fr-FR')}`;
+      document.getElementById('detailJourContent').innerHTML = html;
+      new bootstrap.Modal(document.getElementById('modalDetailJour')).show();
+    });
+}
+
+function mettreAJourStatistiques() {
+  const mois = currentDate.getMonth() + 1;
+  const annee = currentDate.getFullYear();
+  
+  fetch(`{{ url_for('conges_temps.api_stats_calendrier') }}?mois=${mois}&annee=${annee}`)
+    .then(response => response.json())
+    .then(stats => {
+      document.getElementById('statTotalConges').textContent = stats.total_conges;
+      document.getElementById('statEmployesEnConge').textContent = stats.employes_en_conge;
+      document.getElementById('statJoursOuvrables').textContent = stats.jours_ouvrables;
+      document.getElementById('statTauxAbsence').textContent = stats.taux_absence + '%';
+    });
+}
+
+function exportCalendrier() {
+  const mois = currentDate.getMonth() + 1;
+  const annee = currentDate.getFullYear();
+  window.open(`{{ url_for('conges_temps.export_calendrier') }}?mois=${mois}&annee=${annee}`, '_blank');
+}
+</script>

@@ -1,0 +1,100 @@
+<!-- Onglet Absences -->
+<div class="tab-pane fade {% if active_tab == 'absences' %}show active{% endif %}" id="absences">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5>Gestion des absences</h5>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalAjoutAbsence">Nouvelle absence</button>
+  </div>
+
+  <!-- Tableau des absences -->
+  <table class="table table-bordered table-hover">
+    <thead class="table-light">
+      <tr>
+        <th>Employé</th>
+        <th>Date</th>
+        <th>Motif</th>
+        <th>Justificatif</th>
+        <th>État</th>
+        <th>Impact sur paie</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for abs in absences %}
+      <tr>
+        <td>{{ abs.employe.nom }}</td>
+        <td>{{ abs.date_absence.strftime('%d/%m/%Y') }}</td>
+        <td>{{ abs.motif }}</td>
+        <td>
+          <!--{% if abs.justificatif %}
+          <a href="{{ url_for('static', filename='uploads/' ~ abs.justificatif) }}" target="_blank">Voir</a>
+          {% else %}
+          -
+          {% endif %}-->
+          {% if abs.justificatif %}
+          <a href="{{ url_for('static', filename='uploads/' ~ abs.justificatif) }}" target="_blank">Voir</a>
+          {% else %}
+          <span class="text-muted">Aucun</span>
+          {% endif %}
+        </td>
+        <td>
+          <!--{% if abs.etat == 'Justifiée' %}
+          <span class="badge bg-success">{{ abs.etat }}</span>
+          {% elif abs.etat == 'Non justifiée' %}
+          <span class="badge bg-danger">{{ abs.etat }}</span>
+          {% else %}
+          <span class="badge bg-warning text-dark">{{ abs.etat }}</span>
+          {% endif %}-->
+          {% if abs.etat == 'Justifiée' %}
+          <span class="badge bg-success">Justifiée</span>
+          {% elif abs.etat == 'Non justifiée' %}
+          <span class="badge bg-danger">Non justifiée</span>
+          {% else %}
+          <span class="badge bg-warning text-dark">En attente</span>
+          {% endif %}
+        </td>
+        <td>{{ 'Oui' if abs.impact_paie else 'Non' }}</td>
+        <td>
+          {% if abs.statut == 'En attente' %}
+          <form method="POST" action="{{ url_for('conges_temps.valider_absence', id=abs.id) }}" class="d-inline">
+            <button class="btn btn-sm btn-outline-success" title="Valider">
+              <i class="bi bi-check-circle-fill"></i>
+            </button>
+          </form>
+          <form method="POST" action="{{ url_for('conges_temps.refuser_absence', id=abs.id) }}" class="d-inline">
+            <button class="btn btn-sm btn-outline-danger" title="Refuser">
+              <i class="bi bi-x-circle-fill"></i>
+            </button>
+          </form>
+          {% else %}
+          <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="modal fade" id="modalAjoutAbsence" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form class="modal-content" method="POST" enctype="multipart/form-data">
+      <div class="modal-header">
+        <h5 class="modal-title">Nouvelle absence</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {{ form.hidden_tag() }}
+        <div class="mb-3">{{ form.employe_id.label }} {{ form.employe_id(class="form-select") }}</div>
+        <div class="mb-3">{{ form.date_absence.label }} {{ form.date_absence(class="form-control") }}</div>
+        <div class="mb-3">{{ form.motif.label }} {{ form.motif(class="form-control") }}</div>
+        <div class="mb-3">{{ form.justificatif.label }} {{ form.justificatif(class="form-control") }}</div>
+        <div class="form-check">{{ form.impact_paie(class="form-check-input") }} {{
+          form.impact_paie.label(class="form-check-label") }}</div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-success">Enregistrer</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+      </div>
+    </form>
+  </div>
+</div>

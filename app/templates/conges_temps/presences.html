@@ -1,0 +1,221 @@
+
+<!-- Onglet Présences -->
+<div class="tab-pane fade" id="presences">
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="bi bi-clock-history"></i> Gestion des Présences</h5>
+      <div>
+        <a href="{{ url_for('conges_temps.presences_dashboard') }}" class="btn btn-primary btn-sm">
+          <i class="bi bi-speedometer2"></i> Dashboard complet
+        </a>
+        <a href="{{ url_for('conges_temps.pointage') }}" class="btn btn-success btn-sm">
+          <i class="bi bi-play-circle"></i> Nouveau pointage
+        </a>
+      </div>
+    </div>
+    <div class="card-body">
+      <!-- Aperçu rapide des présences -->
+      <div class="row mb-4">
+        <div class="col-md-3">
+          <div class="card bg-success text-white">
+            <div class="card-body text-center">
+              <h4 id="statsPresents">-</h4>
+              <small>Présents aujourd'hui</small>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card bg-warning text-dark">
+            <div class="card-body text-center">
+              <h4 id="statsRetards">-</h4>
+              <small>Retards</small>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card bg-danger text-white">
+            <div class="card-body text-center">
+              <h4 id="statsAbsents">-</h4>
+              <small>Absents</small>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card bg-info text-white">
+            <div class="card-body text-center">
+              <h4 id="statsHeuresSup">-</h4>
+              <small>Heures sup. (semaine)</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions rapides -->
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <h6><i class="bi bi-play-circle"></i> Pointage rapide</h6>
+              <div class="row">
+                <div class="col-8">
+                  <select class="form-select" id="employePointage">
+                    <option value="">Sélectionner un employé...</option>
+                    {% for employe in employes %}
+                    <option value="{{ employe.id }}">{{ employe.nom }} {{ employe.prenom }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-4">
+                  <div class="btn-group w-100">
+                    <button class="btn btn-success btn-sm" onclick="pointageRapide('entree')">
+                      <i class="bi bi-box-arrow-in-right"></i> Entrée
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="pointageRapide('sortie')">
+                      <i class="bi bi-box-arrow-right"></i> Sortie
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <h6><i class="bi bi-list-check"></i> Actions</h6>
+              <div class="d-flex gap-2">
+                <a href="{{ url_for('conges_temps.gestion_heures') }}" class="btn btn-outline-primary btn-sm">
+                  <i class="bi bi-clock"></i> Heures
+                </a>
+                <a href="{{ url_for('conges_temps.rapports_presences') }}" class="btn btn-outline-info btn-sm">
+                  <i class="bi bi-file-text"></i> Rapports
+                </a>
+                <a href="{{ url_for('parametres.parametres_presences') }}" class="btn btn-outline-secondary btn-sm">
+                  <i class="bi bi-gear"></i> Config
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Présences récentes -->
+      <h6><i class="bi bi-clock-history"></i> Derniers pointages</h6>
+      <div class="table-responsive">
+        <table class="table table-sm" id="tablePresencesRecentes">
+          <thead class="table-light">
+            <tr>
+              <th>Employé</th>
+              <th>Aujourd'hui</th>
+              <th>Arrivée</th>
+              <th>Départ</th>
+              <th>Statut</th>
+              <th>Heures</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td colspan="6" class="text-center text-muted">
+                <div class="spinner-border spinner-border-sm me-2"></div>
+                Chargement...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="text-center mt-3">
+        <a href="{{ url_for('conges_temps.presences_dashboard') }}" class="btn btn-primary">
+          <i class="bi bi-speedometer2"></i> Voir le dashboard complet des présences
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Charger les statistiques de présence
+function chargerStatsPresences() {
+  fetch('/api/presences/statistiques?periode=jour')
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById('statsPresents').textContent = data.repartition_statuts.present + data.repartition_statuts.retard;
+      document.getElementById('statsRetards').textContent = data.repartition_statuts.retard;
+      document.getElementById('statsAbsents').textContent = data.repartition_statuts.absent;
+    })
+    .catch(() => {
+      document.getElementById('statsPresents').textContent = '?';
+      document.getElementById('statsRetards').textContent = '?';
+      document.getElementById('statsAbsents').textContent = '?';
+    });
+
+  // Heures sup de la semaine
+  fetch('/api/presences/statistiques?periode=semaine')
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById('statsHeuresSup').textContent = Math.round(data.total_heures_sup) + 'h';
+    })
+    .catch(() => {
+      document.getElementById('statsHeuresSup').textContent = '?';
+    });
+}
+
+// Charger les présences récentes
+function chargerPresencesRecentes() {
+  // Simuler des données pour l'exemple
+  const tbody = document.querySelector('#tablePresencesRecentes tbody');
+  tbody.innerHTML = `
+    <tr><td colspan="6" class="text-center text-muted">
+      <a href="${'{{ url_for("conges_temps.presences_dashboard") }}'}" class="text-decoration-none">
+        <i class="bi bi-arrow-right-circle"></i> Voir les données dans le dashboard complet
+      </a>
+    </td></tr>
+  `;
+}
+
+// Pointage rapide
+function pointageRapide(type) {
+  const employeId = document.getElementById('employePointage').value;
+  if (!employeId) {
+    alert('Veuillez sélectionner un employé');
+    return;
+  }
+
+  fetch('/api/presences/pointage-rapide', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      employe_id: parseInt(employeId),
+      type_pointage: type,
+      methode: 'manuel'
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert(data.message);
+      chargerStatsPresences();
+      chargerPresencesRecentes();
+      document.getElementById('employePointage').value = '';
+    } else {
+      alert('Erreur: ' + data.error);
+    }
+  })
+  .catch(error => {
+    alert('Erreur de connexion: ' + error.message);
+  });
+}
+
+// Charger les données quand l'onglet est affiché
+document.addEventListener('DOMContentLoaded', function() {
+  const presencesTab = document.getElementById('presences-tab');
+  if (presencesTab) {
+    presencesTab.addEventListener('shown.bs.tab', function() {
+      chargerStatsPresences();
+      chargerPresencesRecentes();
+    });
+  }
+});
+</script>

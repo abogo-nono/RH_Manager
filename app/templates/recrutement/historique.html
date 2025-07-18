@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+  <h3>Historique des Offres Supprimées</h3>
+  <a href="{{ url_for('recrutement.list_offres') }}" class="btn btn-secondary mb-4 mt-2">Retour aux Offres Actives</a>
+
+  {% if offres %}
+    <div class="row">
+      {% for offre in offres %}
+        <div class="col-md-4 mb-4">
+          <div class="card border-danger shadow-sm">
+            <div class="card-body">
+              <h5 class="card-title">{{ offre.titre }}</h5>
+              <h6 class="card-subtitle text-muted">{{ offre.departement }}</h6>
+              <p>{{ offre.description | truncate(100) }}</p>
+              <p>{{ offre.requirements or 'Non précisé' }}</p>
+
+              <span class="badge bg-danger">{{ offre.statut }}</span>
+
+              <div class="mt-2">
+                <small>Publié le : {{ offre.date_publication.strftime('%d/%m/%Y') }}</small><br>
+                <small>Clôturé le : {{ offre.date_cloture.strftime('%d/%m/%Y') }}</small><br>
+                {% if offre.date_suppression %}
+                  <small>Supprimé le : {{ offre.date_suppression.strftime('%d/%m/%Y') }}</small><br>
+                {% endif %}
+              </div>
+
+
+              <!-- Optionnel : bouton Restaurer -->
+              <!-- <a href="#" class="btn btn-outline-success btn-sm mt-2">Restaurer</a> -->
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-muted">Aucune offre supprimée pour le moment.</p>
+  {% endif %}
+
+</div>
+{% endblock %}

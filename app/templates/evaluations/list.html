@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h3>Évaluations de {{ employe.nom }}</h3>
+
+  <form method="POST" action="{{ url_for('evaluation.add_evaluation', employe_id=employe.id) }}">
+    <div class="mb-3">
+      <label for="periode" class="form-label">Période</label>
+      <input type="text" class="form-control" name="periode" placeholder="Ex : Trimestre 1 - 2025" required>
+    </div>
+    <div class="mb-3">
+      <label for="score" class="form-label">Score</label>
+      <input type="number" step="0.1" class="form-control" name="score" required>
+    </div>
+    <div class="mb-3">
+      <label for="commentaire" class="form-label">Commentaire</label>
+      <textarea name="commentaire" class="form-control" rows="3" required></textarea>
+    </div>
+    <button type="submit" class="btn btn-success">Ajouter l’évaluation</button>
+  </form>
+
+  <hr>
+
+  <h5>Historique</h5>
+  <ul class="list-group">
+    {% for e in employe.evaluations %}
+    <li class="list-group-item">
+      <strong>{{ e.periode }} :</strong>
+      {{ e.score }} / 10<br>
+      {{ e.commentaire }} <br>
+      <small class="text-muted">le {{ e.date_evaluation.strftime('%d/%m/%Y') }}</small>
+    </li>
+    {% else %}
+    <li class="list-group-item text-muted">Aucune évaluation enregistrée.</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

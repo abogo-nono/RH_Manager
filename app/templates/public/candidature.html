@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+  <h3>Postuler pour : {{ offre.titre }}</h3>
+  <p><strong>Département :</strong> {{ offre.departement }}</p>
+  <p>{{ offre.description }}</p>
+
+  <form method="POST" enctype="multipart/form-data">
+    <div class="mb-3">
+      <label>Nom complet</label>
+      <input type="text" name="nom" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label>Email</label>
+      <input type="email" name="email" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label>Téléphone</label>
+      <input type="tel" name="telephone" pattern="[0-9]{9}" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label>CV (PDF)</label>
+      <input type="file" name="cv" accept="application/pdf" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label>Lettre de motivation (PDF)</label>
+      <input type="file" name="lettre" accept="application/pdf" class="form-control" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Envoyer ma candidature</button>
+  </form>
+</div>
+{% endblock %}

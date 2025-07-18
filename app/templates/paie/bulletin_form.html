@@ -1,0 +1,606 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if bulletin %}Modifier le Bulletin{% else %}Créer un Bulletin{% endif %} - Paie
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>
+                <i class="fas fa-file-invoice-dollar me-2"></i>
+                {% if bulletin %}Modifier le Bulletin{% else %}Créer un Bulletin{% endif %}
+            </h2>
+            <p class="text-muted">
+                {% if bulletin %}
+                    Modification du bulletin de {{ bulletin.employe.nom }} {{ bulletin.employe.prenom }} - {{ bulletin.mois_nom }} {{ bulletin.annee }}
+                {% else %}
+                    Création d'un nouveau bulletin de paie
+                {% endif %}
+            </p>
+        </div>
+        <div>
+            <a href="{{ url_for('paie.bulletins') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Retour
+            </a>
+            {% if bulletin %}
+                <a href="{{ url_for('paie.voir_bulletin', id=bulletin.id) }}" class="btn btn-info">
+                    <i class="fas fa-eye me-2"></i>Aperçu
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <form method="POST" id="bulletinForm">
+        {{ form.hidden_tag() }}
+        
+        <div class="row">
+            <!-- Informations générales -->
+            <div class="col-md-8">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-info-circle me-2"></i>Informations Générales</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.employe_id.label(class="form-label") }}
+                                {{ form.employe_id(class="form-select") }}
+                                {% if form.employe_id.errors %}
+                                    <div class="text-danger">{{ form.employe_id.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-3">
+                                {{ form.mois.label(class="form-label") }}
+                                {{ form.mois(class="form-select") }}
+                                {% if form.mois.errors %}
+                                    <div class="text-danger">{{ form.mois.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-3">
+                                {{ form.annee.label(class="form-label") }}
+                                {{ form.annee(class="form-select") }}
+                                {% if form.annee.errors %}
+                                    <div class="text-danger">{{ form.annee.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-3">
+                            <div class="col-md-4">
+                                {{ form.heures_travaillees.label(class="form-label") }}
+                                {{ form.heures_travaillees(class="form-control", oninput="calculerSalaire()") }}
+                                {% if form.heures_travaillees.errors %}
+                                    <div class="text-danger">{{ form.heures_travaillees.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.heures_supplementaires.label(class="form-label") }}
+                                {{ form.heures_supplementaires(class="form-control", oninput="calculerSalaire()") }}
+                                {% if form.heures_supplementaires.errors %}
+                                    <div class="text-danger">{{ form.heures_supplementaires.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.jours_travailles.label(class="form-label") }}
+                                {{ form.jours_travailles(class="form-control", oninput="calculerSalaire()") }}
+                                {% if form.jours_travailles.errors %}
+                                    <div class="text-danger">{{ form.jours_travailles.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Salaire de base -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-money-bill-wave me-2"></i>Salaire de Base</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.salaire_base.label(class="form-label") }}
+                                <div class="input-group">
+                                    {{ form.salaire_base(class="form-control", oninput="calculerSalaire()") }}
+                                    <span class="input-group-text">MAD</span>
+                                </div>
+                                {% if form.salaire_base.errors %}
+                                    <div class="text-danger">{{ form.salaire_base.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Salaire Brut Calculé</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="salaire_brut_display" readonly>
+                                    <span class="input-group-text">MAD</span>
+                                </div>
+                                {{ form.salaire_brut(style="display: none;", id="salaire_brut_hidden") }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Éléments de paie -->
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5><i class="fas fa-list me-2"></i>Éléments de Paie</h5>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="ajouterElement()">
+                            <i class="fas fa-plus me-1"></i>Ajouter
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="elements-container">
+                            <!-- Les éléments seront ajoutés dynamiquement ici -->
+                        </div>
+                        
+                        <div class="table-responsive mt-3">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Élément</th>
+                                        <th>Type</th>
+                                        <th>Montant</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="elements-table">
+                                    <!-- Les éléments existants seront affichés ici -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Avances et retenues -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-minus-circle me-2"></i>Avances et Retenues</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.avances.label(class="form-label") }}
+                                <div class="input-group">
+                                    {{ form.avances(class="form-control", oninput="calculerSalaire()") }}
+                                    <span class="input-group-text">MAD</span>
+                                </div>
+                                {% if form.avances.errors %}
+                                    <div class="text-danger">{{ form.avances.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.retenues.label(class="form-label") }}
+                                <div class="input-group">
+                                    {{ form.retenues(class="form-control", oninput="calculerSalaire()") }}
+                                    <span class="input-group-text">MAD</span>
+                                </div>
+                                {% if form.retenues.errors %}
+                                    <div class="text-danger">{{ form.retenues.errors[0] }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Commentaires -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-comment me-2"></i>Commentaires</h5>
+                    </div>
+                    <div class="card-body">
+                        {{ form.commentaires.label(class="form-label") }}
+                        {{ form.commentaires(class="form-control", rows="3") }}
+                        {% if form.commentaires.errors %}
+                            <div class="text-danger">{{ form.commentaires.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Récapitulatif -->
+            <div class="col-md-4">
+                <div class="card mb-4 sticky-top">
+                    <div class="card-header">
+                        <h5><i class="fas fa-calculator me-2"></i>Récapitulatif</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <strong>Salaire de Base:</strong>
+                            </div>
+                            <div class="col-6 text-end">
+                                <span id="recap_salaire_base">0,00 MAD</span>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <strong>Primes:</strong>
+                            </div>
+                            <div class="col-6 text-end">
+                                <span id="recap_primes">0,00 MAD</span>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <strong>Heures Sup.:</strong>
+                            </div>
+                            <div class="col-6 text-end">
+                                <span id="recap_heures_sup">0,00 MAD</span>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <strong>Salaire Brut:</strong>
+                            </div>
+                            <div class="col-6 text-end">
+                                <strong><span id="recap_salaire_brut">0,00 MAD</span></strong>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                CNSS:
+                            </div>
+                            <div class="col-6 text-end">
+                                <span id="recap_cnss">0,00 MAD</span>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                AMO:
+                            </div>
+                            <div class="col-6 text-end">
+                                <span id="recap_amo">0,00 MAD</span>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                IR:
+                            </div>
+                            <div class="col-6 text-end">
+                                <span id="recap_ir">0,00 MAD</span>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                Avances:
+                            </div>
+                            <div class="col-6 text-end">
+                                <span id="recap_avances">0,00 MAD</span>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                Retenues:
+                            </div>
+                            <div class="col-6 text-end">
+                                <span id="recap_retenues">0,00 MAD</span>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <strong class="text-success">Salaire Net:</strong>
+                            </div>
+                            <div class="col-6 text-end">
+                                <strong class="text-success"><span id="recap_salaire_net">0,00 MAD</span></strong>
+                            </div>
+                        </div>
+                        
+                        {{ form.salaire_net(style="display: none;", id="salaire_net_hidden") }}
+                        
+                        <hr>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-info" onclick="calculerSalaire()">
+                                <i class="fas fa-calculator me-2"></i>Recalculer
+                            </button>
+                            <button type="button" class="btn btn-warning" onclick="previsualiser()">
+                                <i class="fas fa-eye me-2"></i>Prévisualiser
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Informations employé -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-user me-2"></i>Informations Employé</h5>
+                    </div>
+                    <div class="card-body" id="infos-employe">
+                        <p class="text-muted">Sélectionnez un employé pour voir ses informations</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Boutons d'action -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <a href="{{ url_for('paie.bulletins') }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>Annuler
+                        </a>
+                    </div>
+                    <div>
+                        <button type="submit" name="action" value="brouillon" class="btn btn-outline-primary">
+                            <i class="fas fa-save me-2"></i>Sauvegarder en brouillon
+                        </button>
+                        <button type="submit" name="action" value="valider" class="btn btn-success">
+                            <i class="fas fa-check me-2"></i>Valider et créer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Modal pour ajouter un élément -->
+<div class="modal fade" id="ajouterElementModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ajouter un Élément de Paie</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="elementForm">
+                    <div class="mb-3">
+                        <label class="form-label">Type d'élément</label>
+                        <select class="form-select" id="element_type" required>
+                            <option value="">Choisir...</option>
+                            <option value="prime">Prime</option>
+                            <option value="indemnite">Indemnité</option>
+                            <option value="bonus">Bonus</option>
+                            <option value="remboursement">Remboursement</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Désignation</label>
+                        <input type="text" class="form-control" id="element_designation" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Montant</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="element_montant" step="0.01" required>
+                            <span class="input-group-text">MAD</span>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="confirmerAjoutElement()">Ajouter</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let elements = [];
+let employeData = null;
+
+// Calcul automatique du salaire
+function calculerSalaire() {
+    const salaireBase = parseFloat(document.getElementById('salaire_base').value) || 0;
+    const heuresSupp = parseFloat(document.getElementById('heures_supplementaires').value) || 0;
+    const avances = parseFloat(document.getElementById('avances').value) || 0;
+    const retenues = parseFloat(document.getElementById('retenues').value) || 0;
+    
+    // Calcul des heures supplémentaires (majoration de 25%)
+    const montantHeuresSupp = heuresSupp * (salaireBase / 173.33) * 1.25;
+    
+    // Calcul des primes
+    const totalPrimes = elements.filter(e => e.type === 'prime').reduce((sum, e) => sum + e.montant, 0);
+    
+    // Salaire brut
+    const salaireBrut = salaireBase + montantHeuresSupp + totalPrimes;
+    
+    // Cotisations (taux approximatifs)
+    const cnss = salaireBrut * 0.0448; // 4.48%
+    const amo = salaireBrut * 0.0226; // 2.26%
+    const ir = calculerIR(salaireBrut);
+    
+    // Salaire net
+    const salaireNet = salaireBrut - cnss - amo - ir - avances - retenues;
+    
+    // Mise à jour des champs
+    document.getElementById('salaire_brut_display').value = formatCurrency(salaireBrut);
+    document.getElementById('salaire_brut_hidden').value = salaireBrut;
+    document.getElementById('salaire_net_hidden').value = salaireNet;
+    
+    // Mise à jour du récapitulatif
+    updateRecapitulatif(salaireBase, totalPrimes, montantHeuresSupp, salaireBrut, cnss, amo, ir, avances, retenues, salaireNet);
+}
+
+function calculerIR(salaireBrut) {
+    // Calcul simplifié de l'IR (barème 2024)
+    const salaireAnnuel = salaireBrut * 12;
+    let ir = 0;
+    
+    if (salaireAnnuel <= 30000) {
+        ir = 0;
+    } else if (salaireAnnuel <= 50000) {
+        ir = (salaireAnnuel - 30000) * 0.10;
+    } else if (salaireAnnuel <= 60000) {
+        ir = 2000 + (salaireAnnuel - 50000) * 0.20;
+    } else if (salaireAnnuel <= 80000) {
+        ir = 4000 + (salaireAnnuel - 60000) * 0.30;
+    } else if (salaireAnnuel <= 180000) {
+        ir = 10000 + (salaireAnnuel - 80000) * 0.34;
+    } else {
+        ir = 44000 + (salaireAnnuel - 180000) * 0.38;
+    }
+    
+    return ir / 12; // Retour mensuel
+}
+
+function updateRecapitulatif(salaireBase, primes, heuresSupp, salaireBrut, cnss, amo, ir, avances, retenues, salaireNet) {
+    document.getElementById('recap_salaire_base').textContent = formatCurrency(salaireBase);
+    document.getElementById('recap_primes').textContent = formatCurrency(primes);
+    document.getElementById('recap_heures_sup').textContent = formatCurrency(heuresSupp);
+    document.getElementById('recap_salaire_brut').textContent = formatCurrency(salaireBrut);
+    document.getElementById('recap_cnss').textContent = formatCurrency(cnss);
+    document.getElementById('recap_amo').textContent = formatCurrency(amo);
+    document.getElementById('recap_ir').textContent = formatCurrency(ir);
+    document.getElementById('recap_avances').textContent = formatCurrency(avances);
+    document.getElementById('recap_retenues').textContent = formatCurrency(retenues);
+    document.getElementById('recap_salaire_net').textContent = formatCurrency(salaireNet);
+}
+
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('fr-MA', {
+        style: 'currency',
+        currency: 'MAD',
+        minimumFractionDigits: 2
+    }).format(amount);
+}
+
+// Gestion des éléments
+function ajouterElement() {
+    const modal = new bootstrap.Modal(document.getElementById('ajouterElementModal'));
+    modal.show();
+}
+
+function confirmerAjoutElement() {
+    const type = document.getElementById('element_type').value;
+    const designation = document.getElementById('element_designation').value;
+    const montant = parseFloat(document.getElementById('element_montant').value);
+    
+    if (!type || !designation || !montant) {
+        alert('Veuillez remplir tous les champs');
+        return;
+    }
+    
+    elements.push({
+        type: type,
+        designation: designation,
+        montant: montant
+    });
+    
+    updateElementsTable();
+    calculerSalaire();
+    
+    // Réinitialiser le formulaire
+    document.getElementById('elementForm').reset();
+    
+    // Fermer le modal
+    bootstrap.Modal.getInstance(document.getElementById('ajouterElementModal')).hide();
+}
+
+function updateElementsTable() {
+    const tbody = document.getElementById('elements-table');
+    tbody.innerHTML = '';
+    
+    elements.forEach((element, index) => {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td>${element.designation}</td>
+            <td><span class="badge bg-info">${element.type}</span></td>
+            <td>${formatCurrency(element.montant)}</td>
+            <td>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="supprimerElement(${index})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        `;
+    });
+}
+
+function supprimerElement(index) {
+    elements.splice(index, 1);
+    updateElementsTable();
+    calculerSalaire();
+}
+
+// Chargement des informations employé
+document.getElementById('employe_id').addEventListener('change', function() {
+    const employeId = this.value;
+    if (employeId) {
+        fetch(`/api/employe/${employeId}`)
+            .then(response => response.json())
+            .then(data => {
+                employeData = data;
+                updateInfosEmploye();
+                // Pré-remplir le salaire de base
+                document.getElementById('salaire_base').value = data.salaire_base || 0;
+                calculerSalaire();
+            });
+    }
+});
+
+function updateInfosEmploye() {
+    const container = document.getElementById('infos-employe');
+    if (employeData) {
+        container.innerHTML = `
+            <div class="mb-2">
+                <strong>Nom:</strong> ${employeData.nom} ${employeData.prenom}
+            </div>
+            <div class="mb-2">
+                <strong>Matricule:</strong> ${employeData.matricule}
+            </div>
+            <div class="mb-2">
+                <strong>Poste:</strong> ${employeData.poste}
+            </div>
+            <div class="mb-2">
+                <strong>Département:</strong> ${employeData.departement}
+            </div>
+            <div class="mb-2">
+                <strong>Salaire de base:</strong> ${formatCurrency(employeData.salaire_base)}
+            </div>
+            <div class="mb-2">
+                <strong>Date d'embauche:</strong> ${employeData.date_embauche}
+            </div>
+        `;
+    }
+}
+
+function previsualiser() {
+    // Calculer d'abord
+    calculerSalaire();
+    
+    // Ouvrir une nouvelle fenêtre avec la prévisualisation
+    const form = document.getElementById('bulletinForm');
+    const formData = new FormData(form);
+    formData.append('action', 'previsualiser');
+    
+    fetch(form.action, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.blob())
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+    });
+}
+
+// Initialisation
+document.addEventListener('DOMContentLoaded', function() {
+    // Déclencher le calcul initial
+    calculerSalaire();
+    
+    // Ajouter les événements de calcul automatique
+    const fieldsToWatch = ['salaire_base', 'heures_supplementaires', 'avances', 'retenues'];
+    fieldsToWatch.forEach(fieldId => {
+        document.getElementById(fieldId).addEventListener('input', calculerSalaire);
+    });
+});
+</script>
+{% endblock %}

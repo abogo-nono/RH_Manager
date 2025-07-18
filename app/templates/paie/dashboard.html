@@ -1,0 +1,321 @@
+{% extends "base.html" %}
+
+{% block title %}Tableau de bord - Paie{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête du dashboard -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-dollar-sign me-2"></i>Tableau de bord - Paie</h2>
+            <p class="text-muted">Vue d'ensemble de la gestion de la paie</p>
+        </div>
+        <div>
+            <a href="{{ url_for('paie.nouveau_bulletin') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Nouveau Bulletin
+            </a>
+            <a href="{{ url_for('paie.calculer_paie') }}" class="btn btn-success">
+                <i class="fas fa-calculator me-2"></i>Calculer Paie
+            </a>
+            <div class="btn-group">
+                <button type="button" class="btn btn-info dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-file-excel me-2"></i>Rapports
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="{{ url_for('paie.export_bulletins') }}">Export Bulletins</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('paie.rapport_cotisations') }}">Rapport Cotisations</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('paie.rapport_charges') }}">Rapport Charges</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques principales -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <div class="text-primary">
+                        <i class="fas fa-file-invoice-dollar fa-2x mb-2"></i>
+                    </div>
+                    <h3 class="text-primary">{{ total_bulletins }}</h3>
+                    <p class="card-text text-muted">Total Bulletins</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <div class="text-success">
+                        <i class="fas fa-check-circle fa-2x mb-2"></i>
+                    </div>
+                    <h3 class="text-success">{{ bulletins_payes }}</h3>
+                    <p class="card-text text-muted">Bulletins Payés</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <div class="text-warning">
+                        <i class="fas fa-clock fa-2x mb-2"></i>
+                    </div>
+                    <h3 class="text-warning">{{ bulletins_en_attente }}</h3>
+                    <p class="card-text text-muted">En Attente</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <div class="text-info">
+                        <i class="fas fa-coins fa-2x mb-2"></i>
+                    </div>
+                    <h3 class="text-info">{{ format_currency(montant_total_mois) }}</h3>
+                    <p class="card-text text-muted">Total Mois</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graphiques et métriques -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-line me-2"></i>Évolution des Salaires</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="salaireChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-pie me-2"></i>Répartition Cotisations</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="cotisationsChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Avances en cours -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5><i class="fas fa-hand-holding-usd me-2"></i>Avances en Cours</h5>
+                    <a href="{{ url_for('paie.avances') }}" class="btn btn-sm btn-outline-primary">Voir tout</a>
+                </div>
+                <div class="card-body">
+                    {% if avances_en_cours %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Employé</th>
+                                        <th>Montant</th>
+                                        <th>Reste</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for avance in avances_en_cours %}
+                                    <tr>
+                                        <td>{{ avance.employe.nom }} {{ avance.employe.prenom }}</td>
+                                        <td>{{ format_currency(avance.montant) }}</td>
+                                        <td>{{ format_currency(avance.montant_restant) }}</td>
+                                        <td>{{ avance.date_avance.strftime('%d/%m/%Y') }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center">Aucune avance en cours</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5><i class="fas fa-exclamation-triangle me-2"></i>Alertes & Notifications</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        <i class="fas fa-clock me-2"></i>
+                        <strong>Échéance approche!</strong> {{ bulletins_echeance }} bulletin(s) à traiter avant le 25 du mois.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    
+                    {% if cotisations_expirees %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <strong>Cotisations expirées!</strong> Vérifiez les taux de cotisation.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endif %}
+                    
+                    {% if parametres_manquants %}
+                    <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Configuration incomplète!</strong> Vérifiez les paramètres de paie.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Derniers bulletins -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5><i class="fas fa-receipt me-2"></i>Derniers Bulletins</h5>
+            <a href="{{ url_for('paie.liste_bulletins') }}" class="btn btn-sm btn-outline-primary">Voir tout</a>
+        </div>
+        <div class="card-body">
+            {% if derniers_bulletins %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Employé</th>
+                                <th>Période</th>
+                                <th>Salaire Brut</th>
+                                <th>Salaire Net</th>
+                                <th>Statut</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for bulletin in derniers_bulletins %}
+                            <tr>
+                                <td>
+                                    <strong>{{ bulletin.employe.nom }} {{ bulletin.employe.prenom }}</strong><br>
+                                    <small class="text-muted">{{ bulletin.employe.poste }}</small>
+                                </td>
+                                <td>{{ bulletin.mois }}/{{ bulletin.annee }}</td>
+                                <td>{{ format_currency(bulletin.salaire_brut) }}</td>
+                                <td><strong>{{ format_currency(bulletin.salaire_net) }}</strong></td>
+                                <td>
+                                    {% if bulletin.statut == 'payé' %}
+                                        <span class="badge bg-success">Payé</span>
+                                    {% elif bulletin.statut == 'validé' %}
+                                        <span class="badge bg-primary">Validé</span>
+                                    {% elif bulletin.statut == 'brouillon' %}
+                                        <span class="badge bg-secondary">Brouillon</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">{{ bulletin.statut }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('paie.detail_bulletin', id=bulletin.id) }}" class="btn btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if bulletin.statut == 'brouillon' %}
+                                        <a href="{{ url_for('paie.modifier_bulletin', id=bulletin.id) }}" class="btn btn-outline-secondary">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        {% endif %}
+                                        <a href="{{ url_for('paie.telecharger_bulletin', id=bulletin.id) }}" class="btn btn-outline-success">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-file-invoice-dollar fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Aucun bulletin pour le moment</h5>
+                    <p class="text-muted">Créez votre premier bulletin de paie</p>
+                    <a href="{{ url_for('paie.creer_bulletin') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Créer un bulletin
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Scripts pour les graphiques -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Graphique d'évolution des salaires
+const salaireCtx = document.getElementById('salaireChart').getContext('2d');
+const salaireChart = new Chart(salaireCtx, {
+    type: 'line',
+    data: {
+        labels: {{ evolution_labels | tojson }},
+        datasets: [{
+            label: 'Salaires Bruts',
+            data: {{ evolution_bruts | tojson }},
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            tension: 0.1
+        }, {
+            label: 'Salaires Nets',
+            data: {{ evolution_nets | tojson }},
+            borderColor: 'rgb(255, 99, 132)',
+            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+            tension: 0.1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'top',
+            },
+            title: {
+                display: true,
+                text: 'Évolution des Salaires (6 derniers mois)'
+            }
+        }
+    }
+});
+
+// Graphique des cotisations
+const cotisationsCtx = document.getElementById('cotisationsChart').getContext('2d');
+const cotisationsChart = new Chart(cotisationsCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ cotisations_labels | tojson }},
+        datasets: [{
+            data: {{ cotisations_values | tojson }},
+            backgroundColor: [
+                'rgba(255, 99, 132, 0.8)',
+                'rgba(54, 162, 235, 0.8)',
+                'rgba(255, 205, 86, 0.8)',
+                'rgba(75, 192, 192, 0.8)',
+                'rgba(153, 102, 255, 0.8)',
+                'rgba(255, 159, 64, 0.8)'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+            },
+            title: {
+                display: true,
+                text: 'Répartition des Cotisations'
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

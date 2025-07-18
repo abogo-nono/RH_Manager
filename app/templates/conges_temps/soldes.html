@@ -1,0 +1,330 @@
+<!-- Onglet Soldes -->
+<div class="tab-pane fade {% if active_tab == 'soldes' %}show active{% endif %}" id="soldes">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5>Gestion des soldes de congés</h5>
+    <div>
+      <button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#modalAjustementSolde">
+        <i class="bi bi-plus-circle"></i> Ajustement
+      </button>
+      <button class="btn btn-outline-primary" onclick="exportSoldes()">
+        <i class="bi bi-download"></i> Export Excel
+      </button>
+    </div>
+  </div>
+
+  <!-- Statistiques des soldes -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card text-center border-primary">
+        <div class="card-body">
+          <h5 class="text-primary">{{ stats_soldes.total_employes or 0 }}</h5>
+          <small class="text-muted">Employés</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center border-success">
+        <div class="card-body">
+          <h5 class="text-success">{{ stats_soldes.solde_moyen|round(1) or 0 }}</h5>
+          <small class="text-muted">Solde moyen</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center border-warning">
+        <div class="card-body">
+          <h5 class="text-warning">{{ stats_soldes.soldes_faibles or 0 }}</h5>
+          <small class="text-muted">Soldes < 5 jours</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center border-danger">
+        <div class="card-body">
+          <h5 class="text-danger">{{ stats_soldes.soldes_negatifs or 0 }}</h5>
+          <small class="text-muted">Soldes négatifs</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filtres -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <select class="form-select" id="filtreTypeConge" onchange="filtrerSoldes()">
+            <option value="">Tous les types</option>
+            {% for type_conge in types_conges %}
+            <option value="{{ type_conge.id }}">{{ type_conge.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <select class="form-select" id="filtreAnnee" onchange="filtrerSoldes()">
+            <option value="">Toutes les années</option>
+            {% for annee in range(2020, 2030) %}
+            <option value="{{ annee }}" {% if annee == current_year %}selected{% endif %}>{{ annee }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <select class="form-select" id="filtreSeuil" onchange="filtrerSoldes()">
+            <option value="">Tous les soldes</option>
+            <option value="faible">Soldes faibles (< 5j)</option>
+            <option value="negatif">Soldes négatifs</option>
+            <option value="eleve">Soldes élevés (> 20j)</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <input type="text" class="form-control" id="filtreEmployeSolde" placeholder="Rechercher employé" onkeyup="filtrerSoldes()">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tableau des soldes -->
+  <div class="table-responsive">
+    <table class="table table-hover" id="tableSoldes">
+      <thead class="table-dark">
+        <tr>
+          <th>Employé</th>
+          <th>Type de congé</th>
+          <th>Année</th>
+          <th>Solde initial</th>
+          <th>Jours pris</th>
+          <th>Solde actuel</th>
+          <th>Statut</th>
+          <th>Dernière MAJ</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for solde in soldes %}
+        <tr data-type="{{ solde.type_conge_id }}" data-annee="{{ solde.annee }}" 
+            data-employe="{{ solde.employe.nom }} {{ solde.employe.prenom }}"
+            data-solde="{{ solde.solde_actuel }}">
+          <td>
+            <div class="d-flex align-items-center">
+              {% if solde.employe.photo %}
+              <img src="{{ url_for('static', filename='uploads/employees/photos/' ~ solde.employe.photo) }}" 
+                   class="rounded-circle me-2" width="32" height="32" alt="Photo">
+              {% else %}
+              <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center me-2" 
+                   style="width: 32px; height: 32px;">
+                <i class="bi bi-person text-white"></i>
+              </div>
+              {% endif %}
+              <div>
+                <div class="fw-bold">{{ solde.employe.nom }} {{ solde.employe.prenom }}</div>
+                <small class="text-muted">{{ solde.employe.poste }}</small>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span class="badge" style="background-color: {{ solde.type_conge.couleur }};">
+              {{ solde.type_conge.nom }}
+            </span>
+          </td>
+          <td><span class="fw-bold">{{ solde.annee }}</span></td>
+          <td>{{ solde.solde_initial }} jours</td>
+          <td>{{ solde.jours_pris }} jours</td>
+          <td>
+            <span class="fw-bold {% if solde.solde_actuel < 0 %}text-danger{% elif solde.solde_actuel < 5 %}text-warning{% else %}text-success{% endif %}">
+              {{ solde.solde_actuel }} jours
+            </span>
+          </td>
+          <td>
+            {% if solde.solde_actuel < 0 %}
+            <span class="badge bg-danger">Négatif</span>
+            {% elif solde.solde_actuel < 5 %}
+            <span class="badge bg-warning text-dark">Faible</span>
+            {% elif solde.solde_actuel > 20 %}
+            <span class="badge bg-info">Élevé</span>
+            {% else %}
+            <span class="badge bg-success">Normal</span>
+            {% endif %}
+          </td>
+          <td>{{ solde.date_maj.strftime('%d/%m/%Y') if solde.date_maj else '-' }}</td>
+          <td>
+            <div class="btn-group btn-group-sm">
+              <button class="btn btn-outline-primary" onclick="voirHistoriqueSolde({{ solde.id }})" title="Historique">
+                <i class="bi bi-clock-history"></i>
+              </button>
+              {% if current_user.role.nom in ['Admin', 'Manager RH'] %}
+              <button class="btn btn-outline-warning" onclick="ajusterSolde({{ solde.id }})" title="Ajuster">
+                <i class="bi bi-pencil"></i>
+              </button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if soldes.pages > 1 %}
+  <nav aria-label="Navigation soldes">
+    <ul class="pagination justify-content-center">
+      {% if soldes.has_prev %}
+      <li class="page-item">
+        <a class="page-link" href="{{ url_for('conges_temps.index', page=soldes.prev_num, tab='soldes') }}">Précédent</a>
+      </li>
+      {% endif %}
+      
+      {% for page_num in soldes.iter_pages() %}
+      {% if page_num %}
+        {% if page_num != soldes.page %}
+        <li class="page-item">
+          <a class="page-link" href="{{ url_for('conges_temps.index', page=page_num, tab='soldes') }}">{{ page_num }}</a>
+        </li>
+        {% else %}
+        <li class="page-item active">
+          <span class="page-link">{{ page_num }}</span>
+        </li>
+        {% endif %}
+      {% else %}
+      <li class="page-item disabled">
+        <span class="page-link">…</span>
+      </li>
+      {% endif %}
+      {% endfor %}
+      
+      {% if soldes.has_next %}
+      <li class="page-item">
+        <a class="page-link" href="{{ url_for('conges_temps.index', page=soldes.next_num, tab='soldes') }}">Suivant</a>
+      </li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+</div>
+
+<!-- Modal Ajustement de solde -->
+<div class="modal fade" id="modalAjustementSolde" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form class="modal-content" method="POST" action="{{ url_for('conges_temps.ajuster_solde') }}">
+      <div class="modal-header">
+        <h5 class="modal-title">Ajustement de solde</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {{ form_solde.hidden_tag() }}
+        
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            {{ form_solde.employe_id.label(class="form-label") }}
+            {{ form_solde.employe_id(class="form-select") }}
+          </div>
+          <div class="col-md-6 mb-3">
+            {{ form_solde.type_conge_id.label(class="form-label") }}
+            {{ form_solde.type_conge_id(class="form-select") }}
+          </div>
+        </div>
+        
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            {{ form_solde.annee.label(class="form-label") }}
+            {{ form_solde.annee(class="form-control") }}
+          </div>
+          <div class="col-md-6 mb-3">
+            {{ form_solde.nouveau_solde.label(class="form-label") }}
+            {{ form_solde.nouveau_solde(class="form-control") }}
+          </div>
+        </div>
+        
+        <div class="mb-3">
+          {{ form_solde.motif_ajustement.label(class="form-label") }}
+          {{ form_solde.motif_ajustement(class="form-control", rows="3") }}
+        </div>
+        
+        <div class="alert alert-info">
+          <i class="bi bi-info-circle"></i>
+          <strong>Information:</strong> Cet ajustement sera enregistré dans l'historique et sera visible par tous les managers RH.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-warning">Ajuster le solde</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal Historique des soldes -->
+<div class="modal fade" id="modalHistoriqueSolde" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Historique du solde</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="historiqueSoldeContent">
+        <!-- Contenu chargé dynamiquement -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function filtrerSoldes() {
+  const typeConge = document.getElementById('filtreTypeConge').value;
+  const annee = document.getElementById('filtreAnnee').value;
+  const seuil = document.getElementById('filtreSeuil').value;
+  const employe = document.getElementById('filtreEmployeSolde').value.toLowerCase();
+  const rows = document.querySelectorAll('#tableSoldes tbody tr');
+  
+  rows.forEach(row => {
+    const rowType = row.dataset.type;
+    const rowAnnee = row.dataset.annee;
+    const rowEmploye = row.dataset.employe.toLowerCase();
+    const rowSolde = parseFloat(row.dataset.solde);
+    
+    const matchType = !typeConge || rowType === typeConge;
+    const matchAnnee = !annee || rowAnnee === annee;
+    const matchEmploye = !employe || rowEmploye.includes(employe);
+    
+    let matchSeuil = true;
+    if (seuil === 'faible') matchSeuil = rowSolde < 5 && rowSolde >= 0;
+    else if (seuil === 'negatif') matchSeuil = rowSolde < 0;
+    else if (seuil === 'eleve') matchSeuil = rowSolde > 20;
+    
+    row.style.display = matchType && matchAnnee && matchEmploye && matchSeuil ? '' : 'none';
+  });
+}
+
+function voirHistoriqueSolde(id) {
+  fetch(`{{ url_for('conges_temps.historique_solde', id=0) }}`.replace('0', id))
+    .then(response => response.text())
+    .then(html => {
+      document.getElementById('historiqueSoldeContent').innerHTML = html;
+      new bootstrap.Modal(document.getElementById('modalHistoriqueSolde')).show();
+    });
+}
+
+function ajusterSolde(id) {
+  // Pré-remplir le formulaire avec les données du solde
+  fetch(`{{ url_for('conges_temps.get_solde_data', id=0) }}`.replace('0', id))
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById('employe_id').value = data.employe_id;
+      document.getElementById('type_conge_id').value = data.type_conge_id;
+      document.getElementById('annee').value = data.annee;
+      document.getElementById('nouveau_solde').value = data.solde_actuel;
+      new bootstrap.Modal(document.getElementById('modalAjustementSolde')).show();
+    });
+}
+
+function exportSoldes() {
+  const params = new URLSearchParams();
+  const typeConge = document.getElementById('filtreTypeConge').value;
+  const annee = document.getElementById('filtreAnnee').value;
+  
+  if (typeConge) params.append('type_conge', typeConge);
+  if (annee) params.append('annee', annee);
+  
+  window.open(`{{ url_for('conges_temps.export_soldes') }}?${params.toString()}`, '_blank');
+}
+</script>

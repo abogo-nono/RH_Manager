@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2>Paramètres</h2>
+<ul class="nav nav-tabs mb-4">
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'utilisateurs' %}active{% endif %}" href="{{ url_for('parametres.utilisateurs') }}">Utilisateurs</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'conges' %}active{% endif %}" href="{{ url_for('parametres.conges') }}">Congés</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'paie' %}active{% endif %}" href="{{ url_for('parametres.parametres_paie') }}">Paie</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'presences' %}active{% endif %}" href="#">Présences</a>
+  </li>
+</ul>
+
+<div class="container-fluid">
+  <form method="POST">
+    {{ form.hidden_tag() }}
+
+    <div class="row">
+      <div class="col-md-6">
+        <h5>Variables de paie</h5>
+        <div class="mb-3">
+          {{ form.smic_horaire.label(class="form-label") }}
+          {{ form.smic_horaire(class="form-control") }}
+        </div>
+        <div class="mb-3">
+          {{ form.plafond_cnps.label(class="form-label") }}
+          {{ form.plafond_cnps(class="form-control") }}
+        </div>
+        <!--<div class="mb-3">
+          {{ form.taux_transport.label(class="form-label") }}
+          {{ form.taux_transport(class="form-control") }}
+        </div>-->
+
+        <h5 class="mt-4">Taux de cotisations</h5>
+        <table class="table table-bordered">
+          <thead>
+            <tr>
+              <th>Cotisation</th>
+              <th>Part salariale</th>
+              <th>Part patronale</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for cotisation in cotisations %}
+              <tr>
+                <td>{{ cotisation.libelle }}</td>
+                <td>{{ cotisation.taux_salarial }}%</td>
+                <td>{{ cotisation.taux_patronal }}%</td>
+                <td><a href="#" class="btn btn-sm btn-outline-warning">Modifier</a></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="col-md-6">
+        <h5>Paramètres de calcul</h5>
+        <div class="form-check form-switch mb-3">
+          {{ form.auto_calcule(class="form-check-input") }}
+          {{ form.auto_calcule.label(class="form-check-label") }}
+        </div>
+        <div class="mb-3">
+          {{ form.jour_paiement.label(class="form-label") }}
+          {{ form.jour_paiement(class="form-select") }}
+        </div>
+
+        <h5>Configuration des heures</h5>
+        <div class="mb-3">
+          {{ form.heures_hebdo.label(class="form-label") }}
+          {{ form.heures_hebdo(class="form-control") }}
+        </div>
+        <div class="mb-3">
+          {{ form.hs_25.label(class="form-label") }}
+          {{ form.hs_25(class="form-control") }}
+        </div>
+        <div class="mb-3">
+          {{ form.hs_50.label(class="form-label") }}
+          {{ form.hs_50(class="form-control") }}
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end mt-4">
+      <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+    </div>
+  </form>
+</div>
+
+{% endblock %}

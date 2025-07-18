@@ -1,0 +1,300 @@
+<!-- Détail d'une demande de congé -->
+<div class="row">
+  <div class="col-md-8">
+    <!-- Informations principales -->
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">Informations de la demande</h6>
+        <span class="badge {% if conge.statut == 'en_attente' %}bg-warning text-dark{% elif conge.statut == 'approuve' %}bg-success{% else %}bg-danger{% endif %}">
+          {{ conge.statut|title }}
+        </span>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <strong>Type de congé:</strong><br>
+            <span class="badge" style="background-color: {{ conge.type_conge.couleur if conge.type_conge else '#6c757d' }};">
+              {{ conge.type_conge.nom if conge.type_conge else conge.type_conge_id }}
+            </span>
+          </div>
+          <div class="col-md-6">
+            <strong>Période:</strong><br>
+            Du {{ conge.date_debut.strftime('%d/%m/%Y') }} au {{ conge.date_fin.strftime('%d/%m/%Y') }}
+          </div>
+        </div>
+        
+        <div class="row mt-3">
+          <div class="col-md-6">
+            <strong>Durée:</strong><br>
+            {{ conge.nombre_jours_calcule }} jour(s) total
+            {% if conge.nombre_jours_ouvrables != conge.nombre_jours_calcule %}
+            <br><small class="text-muted">{{ conge.nombre_jours_ouvrables }} jour(s) ouvrables</small>
+            {% endif %}
+          </div>
+          <div class="col-md-6">
+            <strong>Date de demande:</strong><br>
+            {{ conge.date_demande.strftime('%d/%m/%Y à %H:%M') if conge.date_demande else '-' }}
+          </div>
+        </div>
+        
+        {% if conge.motif %}
+        <div class="mt-3">
+          <strong>Motif:</strong><br>
+          <div class="bg-light p-2 rounded">{{ conge.motif }}</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    
+    <!-- Justificatif -->
+    {% if conge.justificatif %}
+    <div class="card mb-3">
+      <div class="card-header">
+        <h6 class="mb-0">Justificatif</h6>
+      </div>
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <i class="bi bi-paperclip me-2"></i>
+          <a href="{{ url_for('static', filename='uploads/conges/' ~ conge.justificatif) }}" target="_blank" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-download"></i> Télécharger le justificatif
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    
+    <!-- Actions de validation -->
+    {% if current_user.role.nom in ['Admin', 'Manager RH'] and conge.statut == 'en_attente' %}
+    <div class="card mb-3">
+      <div class="card-header">
+        <h6 class="mb-0">Actions de validation</h6>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('conges_temps.traiter_conge', id=conge.id) }}" class="d-inline">
+          {{ csrf_token() }}
+          <input type="hidden" name="action" value="approuver">
+          <button type="submit" class="btn btn-success me-2" onclick="return confirm('Approuver cette demande de congé ?')">
+            <i class="bi bi-check-circle"></i> Approuver
+          </button>
+        </form>
+        
+        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalRejet">
+          <i class="bi bi-x-circle"></i> Rejeter
+        </button>
+      </div>
+    </div>
+    {% endif %}
+    
+    <!-- Historique des actions -->
+    {% if historique %}
+    <div class="card">
+      <div class="card-header">
+        <h6 class="mb-0">Historique des actions</h6>
+      </div>
+      <div class="card-body">
+        <div class="timeline">
+          {% for action in historique %}
+          <div class="timeline-item">
+            <div class="timeline-marker bg-primary"></div>
+            <div class="timeline-content">
+              <div class="d-flex justify-content-between">
+                <strong>{{ action.action }}</strong>
+                <small class="text-muted">{{ action.date_action.strftime('%d/%m/%Y à %H:%M') }}</small>
+              </div>
+              <div>Par: {{ action.utilisateur.nom }} {{ action.utilisateur.prenom }}</div>
+              {% if action.commentaire %}
+              <div class="text-muted mt-1">{{ action.commentaire }}</div>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  
+  <div class="col-md-4">
+    <!-- Informations du demandeur -->
+    <div class="card mb-3">
+      <div class="card-header">
+        <h6 class="mb-0">Demandeur</h6>
+      </div>
+      <div class="card-body text-center">
+        {% if conge.employe.photo %}
+        <img src="{{ url_for('static', filename='uploads/employees/photos/' ~ conge.employe.photo) }}" 
+             class="rounded-circle mb-2" width="80" height="80" alt="Photo">
+        {% else %}
+        <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2" 
+             style="width: 80px; height: 80px;">
+          <i class="bi bi-person text-white fs-2"></i>
+        </div>
+        {% endif %}
+        <h6>{{ conge.employe.nom }} {{ conge.employe.prenom }}</h6>
+        <p class="text-muted mb-1">{{ conge.employe.poste }}</p>
+        <p class="text-muted">{{ conge.employe.service }}</p>
+        
+        {% if conge.employe.manager %}
+        <div class="mt-3">
+          <small class="text-muted">Manager:</small><br>
+          <strong>{{ conge.employe.manager.nom }} {{ conge.employe.manager.prenom }}</strong>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    
+    <!-- Remplaçant -->
+    {% if conge.remplacant %}
+    <div class="card mb-3">
+      <div class="card-header">
+        <h6 class="mb-0">Remplaçant désigné</h6>
+      </div>
+      <div class="card-body text-center">
+        {% if conge.remplacant.photo %}
+        <img src="{{ url_for('static', filename='uploads/employees/photos/' ~ conge.remplacant.photo) }}" 
+             class="rounded-circle mb-2" width="60" height="60" alt="Photo">
+        {% else %}
+        <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2" 
+             style="width: 60px; height: 60px;">
+          <i class="bi bi-person text-white"></i>
+        </div>
+        {% endif %}
+        <h6>{{ conge.remplacant.nom }} {{ conge.remplacant.prenom }}</h6>
+        <p class="text-muted">{{ conge.remplacant.poste }}</p>
+      </div>
+    </div>
+    {% endif %}
+    
+    <!-- Solde après congé -->
+    {% if solde_impact %}
+    <div class="card mb-3">
+      <div class="card-header">
+        <h6 class="mb-0">Impact sur les soldes</h6>
+      </div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <span>Solde avant:</span>
+          <strong>{{ solde_impact.avant }} jours</strong>
+        </div>
+        <div class="d-flex justify-content-between">
+          <span>Jours demandés:</span>
+          <strong class="text-danger">-{{ conge.nombre_jours_ouvrables }} jours</strong>
+        </div>
+        <hr>
+        <div class="d-flex justify-content-between">
+          <span>Solde après:</span>
+          <strong class="{% if solde_impact.apres < 0 %}text-danger{% elif solde_impact.apres < 5 %}text-warning{% else %}text-success{% endif %}">
+            {{ solde_impact.apres }} jours
+          </strong>
+        </div>
+        
+        {% if solde_impact.apres < 0 %}
+        <div class="alert alert-warning mt-2 p-2">
+          <i class="bi bi-exclamation-triangle"></i>
+          <small>Attention: Solde négatif après ce congé</small>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+    
+    <!-- Congés similaires -->
+    {% if conges_similaires %}
+    <div class="card">
+      <div class="card-header">
+        <h6 class="mb-0">Congés dans la même période</h6>
+      </div>
+      <div class="card-body">
+        {% for autre_conge in conges_similaires %}
+        <div class="d-flex align-items-center mb-2">
+          <div class="me-2">
+            {% if autre_conge.employe.photo %}
+            <img src="{{ url_for('static', filename='uploads/employees/photos/' ~ autre_conge.employe.photo) }}" 
+                 class="rounded-circle" width="24" height="24" alt="Photo">
+            {% else %}
+            <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center" 
+                 style="width: 24px; height: 24px;">
+              <i class="bi bi-person text-white" style="font-size: 0.7rem;"></i>
+            </div>
+            {% endif %}
+          </div>
+          <div class="flex-grow-1">
+            <small class="fw-bold">{{ autre_conge.employe.nom }} {{ autre_conge.employe.prenom }}</small><br>
+            <small class="text-muted">{{ autre_conge.date_debut.strftime('%d/%m') }} - {{ autre_conge.date_fin.strftime('%d/%m') }}</small>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Modal de rejet -->
+<div class="modal fade" id="modalRejet" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form class="modal-content" method="POST" action="{{ url_for('conges_temps.traiter_conge', id=conge.id) }}">
+      <div class="modal-header">
+        <h5 class="modal-title">Rejeter la demande</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {{ csrf_token() }}
+        <input type="hidden" name="action" value="rejeter">
+        
+        <div class="mb-3">
+          <label class="form-label">Motif du rejet <span class="text-danger">*</span></label>
+          <textarea name="motif_rejet" class="form-control" rows="4" required placeholder="Expliquez pourquoi cette demande est rejetée..."></textarea>
+        </div>
+        
+        <div class="alert alert-warning">
+          <i class="bi bi-exclamation-triangle"></i>
+          Cette action est définitive. L'employé sera notifié du rejet avec le motif fourni.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-danger">Rejeter la demande</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+.timeline {
+  position: relative;
+  padding-left: 30px;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 15px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #dee2e6;
+}
+
+.timeline-item {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.timeline-marker {
+  position: absolute;
+  left: -22px;
+  top: 5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid white;
+}
+
+.timeline-content {
+  background: #f8f9fa;
+  padding: 10px;
+  border-radius: 5px;
+  border-left: 3px solid #007bff;
+}
+</style>

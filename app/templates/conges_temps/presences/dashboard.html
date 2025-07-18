@@ -1,0 +1,435 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- En-tête avec statistiques -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-0"><i class="bi bi-clock-fill text-primary"></i> Gestion des Présences</h1>
+      <p class="text-muted mb-0">Dashboard et suivi temps réel</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalPointageRapide">
+        <i class="bi bi-plus-circle"></i> Pointage rapide
+      </button>
+      <a href="{{ url_for('conges_temps.pointage') }}" class="btn btn-primary">
+        <i class="bi bi-stopwatch"></i> Interface de pointage
+      </a>
+    </div>
+  </div>
+
+  <!-- Statistiques du jour -->
+  <div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-success shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Présents aujourd'hui</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats_jour.presents }}</div>
+              <div class="text-xs text-muted">sur {{ stats_jour.total_employes }} employés</div>
+            </div>
+            <div class="col-auto">
+              <i class="bi bi-person-check-fill fa-2x text-success"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-danger shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Absents</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats_jour.absents }}</div>
+              <div class="text-xs text-muted">{{ '%.1f'|format((stats_jour.absents / stats_jour.total_employes * 100) if stats_jour.total_employes > 0 else 0) }}% du personnel</div>
+            </div>
+            <div class="col-auto">
+              <i class="bi bi-person-x-fill fa-2x text-danger"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-warning shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Retards</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats_jour.retards }}</div>
+              <div class="text-xs text-muted">{{ '%.1f'|format((stats_jour.retards / stats_jour.total_employes * 100) if stats_jour.total_employes > 0 else 0) }}% en retard</div>
+            </div>
+            <div class="col-auto">
+              <i class="bi bi-clock-history fa-2x text-warning"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="card border-left-info shadow h-100 py-2">
+        <div class="card-body">
+          <div class="row no-gutters align-items-center">
+            <div class="col mr-2">
+              <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Taux présence</div>
+              <div class="h5 mb-0 font-weight-bold text-gray-800">{{ '%.1f'|format((stats_jour.presents / stats_jour.total_employes * 100) if stats_jour.total_employes > 0 else 0) }}%</div>
+              <div class="progress progress-sm">
+                <div class="progress-bar bg-info" style="width: {{ (stats_jour.presents / stats_jour.total_employes * 100) if stats_jour.total_employes > 0 else 0 }}%"></div>
+              </div>
+            </div>
+            <div class="col-auto">
+              <i class="bi bi-graph-up fa-2x text-info"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contenu principal -->
+  <div class="row">
+    <!-- Présences récentes -->
+    <div class="col-lg-8 mb-4">
+      <div class="card shadow">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+          <h6 class="m-0 font-weight-bold text-primary"><i class="bi bi-list-ul"></i> Présences récentes</h6>
+          <a href="{{ url_for('conges_temps.gestion_heures') }}" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-arrow-right"></i> Voir tout
+          </a>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Employé</th>
+                  <th>Date</th>
+                  <th>Arrivée</th>
+                  <th>Départ</th>
+                  <th>Heures</th>
+                  <th>Statut</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for presence in presences_recentes %}
+                <tr>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      {% if presence.employe.photo %}
+                      <img src="{{ url_for('static', filename='uploads/employees/photos/' ~ presence.employe.photo) }}" 
+                           class="rounded-circle me-2" style="width: 32px; height: 32px;">
+                      {% else %}
+                      <div class="bg-primary rounded-circle me-2 d-flex align-items-center justify-content-center" 
+                           style="width: 32px; height: 32px;">
+                        <i class="bi bi-person text-white"></i>
+                      </div>
+                      {% endif %}
+                      <div>
+                        <div class="fw-bold">{{ presence.employe.nom }} {{ presence.employe.prenom }}</div>
+                        <small class="text-muted">{{ presence.employe.poste or 'N/A' }}</small>
+                      </div>
+                    </div>
+                  </td>
+                  <td>{{ presence.date_travail.strftime('%d/%m/%Y') }}</td>
+                  <td>
+                    {% if presence.heure_arrivee %}
+                      {{ presence.heure_arrivee.strftime('%H:%M') }}
+                      {% if presence.retard_minutes > 0 %}
+                        <small class="text-warning">(+{{ presence.retard_minutes }}min)</small>
+                      {% endif %}
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if presence.heure_depart %}
+                      {{ presence.heure_depart.strftime('%H:%M') }}
+                    {% else %}
+                      <span class="text-muted">En cours</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <span class="fw-bold">{{ '%.1f'|format(presence.heures_travaillees or 0) }}h</span>
+                    {% if presence.heures_supplementaires > 0 %}
+                      <small class="text-info">(+{{ '%.1f'|format(presence.heures_supplementaires) }}h)</small>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if presence.statut == 'present' %}
+                      <span class="badge bg-success">Présent</span>
+                    {% elif presence.statut == 'retard' %}
+                      <span class="badge bg-warning">Retard</span>
+                    {% elif presence.statut == 'absent' %}
+                      <span class="badge bg-danger">Absent</span>
+                    {% elif presence.statut == 'conge' %}
+                      <span class="badge bg-info">Congé</span>
+                    {% elif presence.statut == 'maladie' %}
+                      <span class="badge bg-secondary">Maladie</span>
+                    {% else %}
+                      <span class="badge bg-light text-dark">{{ presence.statut|title }}</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notifications et alertes -->
+    <div class="col-lg-4 mb-4">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary"><i class="bi bi-bell-fill"></i> Notifications récentes</h6>
+        </div>
+        <div class="card-body p-0" style="max-height: 400px; overflow-y: auto;">
+          {% for notification in notifications %}
+          <div class="d-flex align-items-center p-3 border-bottom">
+            <div class="me-3">
+              {% if notification.type_notification == 'retard' %}
+                <i class="bi bi-clock text-warning fa-lg"></i>
+              {% elif notification.type_notification == 'absence' %}
+                <i class="bi bi-person-x text-danger fa-lg"></i>
+              {% elif notification.type_notification == 'heures_sup' %}
+                <i class="bi bi-plus-circle text-info fa-lg"></i>
+              {% else %}
+                <i class="bi bi-info-circle text-primary fa-lg"></i>
+              {% endif %}
+            </div>
+            <div class="flex-grow-1">
+              <h6 class="mb-1">{{ notification.titre }}</h6>
+              <p class="mb-1 text-muted small">{{ notification.message }}</p>
+              <small class="text-muted">{{ notification.date_creation.strftime('%d/%m/%Y %H:%M') }}</small>
+            </div>
+            {% if notification.priorite == 'haute' %}
+              <span class="badge bg-danger">Urgent</span>
+            {% elif notification.priorite == 'normale' %}
+              <span class="badge bg-warning">Normal</span>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Raccourcis -->
+      <div class="card shadow mt-4">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary"><i class="bi bi-lightning-fill"></i> Actions rapides</h6>
+        </div>
+        <div class="card-body">
+          <div class="d-grid gap-2">
+            <a href="{{ url_for('conges_temps.pointage') }}" class="btn btn-outline-primary">
+              <i class="bi bi-stopwatch"></i> Saisir un pointage
+            </a>
+            <a href="{{ url_for('conges_temps.gestion_heures') }}" class="btn btn-outline-success">
+              <i class="bi bi-calendar-check"></i> Valider les heures
+            </a>
+            <button class="btn btn-outline-info" onclick="genererRapport()">
+              <i class="bi bi-file-earmark-text"></i> Rapport journalier
+            </button>
+            <a href="{{ url_for('parametres.parametres_presences') }}" class="btn btn-outline-secondary">
+              <i class="bi bi-gear"></i> Paramètres
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Graphique des tendances -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card shadow">
+        <div class="card-header py-3">
+          <h6 class="m-0 font-weight-bold text-primary"><i class="bi bi-graph-up"></i> Tendances de présence (7 derniers jours)</h6>
+        </div>
+        <div class="card-body">
+          <canvas id="chartPresences" width="100%" height="40"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Pointage Rapide -->
+<div class="modal fade" id="modalPointageRapide" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-stopwatch"></i> Pointage rapide</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Employé</label>
+          <select class="form-select" id="employeRapide">
+            <option value="">Sélectionner un employé</option>
+            <!-- Options remplies via AJAX -->
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Type de pointage</label>
+          <div class="btn-group w-100" role="group">
+            <input type="radio" class="btn-check" name="typePointage" id="entree" value="entree" checked>
+            <label class="btn btn-outline-success" for="entree"><i class="bi bi-box-arrow-in-right"></i> Entrée</label>
+            
+            <input type="radio" class="btn-check" name="typePointage" id="sortie" value="sortie">
+            <label class="btn btn-outline-danger" for="sortie"><i class="bi bi-box-arrow-left"></i> Sortie</label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-primary" onclick="enregistrerPointageRapide()">
+          <i class="bi bi-check-circle"></i> Enregistrer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Initialisation du graphique
+document.addEventListener('DOMContentLoaded', function() {
+  chargerGraphiquePresences();
+  chargerEmployesPourPointage();
+});
+
+function chargerGraphiquePresences() {
+  fetch('/api/presences/statistiques?periode=semaine')
+    .then(response => response.json())
+    .then(data => {
+      const ctx = document.getElementById('chartPresences').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: data.evolution_quotidienne.map(d => new Date(d.date).toLocaleDateString('fr-FR')),
+          datasets: [
+            {
+              label: 'Présents',
+              data: data.evolution_quotidienne.map(d => d.presents),
+              borderColor: 'rgb(75, 192, 192)',
+              backgroundColor: 'rgba(75, 192, 192, 0.2)',
+              tension: 0.1
+            },
+            {
+              label: 'Retards',
+              data: data.evolution_quotidienne.map(d => d.retards),
+              borderColor: 'rgb(255, 193, 7)',
+              backgroundColor: 'rgba(255, 193, 7, 0.2)',
+              tension: 0.1
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    })
+    .catch(error => console.error('Erreur chargement graphique:', error));
+}
+
+function chargerEmployesPourPointage() {
+  // Charger la liste des employés pour le pointage rapide
+  fetch('/api/employes/actifs')
+    .then(response => response.json())
+    .then(employes => {
+      const select = document.getElementById('employeRapide');
+      employes.forEach(emp => {
+        const option = document.createElement('option');
+        option.value = emp.id;
+        option.textContent = `${emp.nom} ${emp.prenom}`;
+        select.appendChild(option);
+      });
+    })
+    .catch(error => console.error('Erreur chargement employés:', error));
+}
+
+function enregistrerPointageRapide() {
+  const employeId = document.getElementById('employeRapide').value;
+  const typePointage = document.querySelector('input[name="typePointage"]:checked').value;
+  
+  if (!employeId) {
+    alert('Veuillez sélectionner un employé');
+    return;
+  }
+  
+  const data = {
+    employe_id: parseInt(employeId),
+    type_pointage: typePointage,
+    methode: 'manuel_rapide'
+  };
+  
+  fetch('/api/presences/pointage-rapide', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data)
+  })
+  .then(response => response.json())
+  .then(result => {
+    if (result.success) {
+      alert(result.message);
+      location.reload();
+    } else {
+      alert('Erreur: ' + result.error);
+    }
+  })
+  .catch(error => {
+    console.error('Erreur:', error);
+    alert('Erreur lors de l\'enregistrement');
+  });
+}
+
+function genererRapport() {
+  // Générer un rapport journalier
+  const today = new Date().toISOString().split('T')[0];
+  window.open(`/conges-temps/presences/rapport?date_debut=${today}&date_fin=${today}&type_rapport=synthese&format_export=pdf`, '_blank');
+}
+</script>
+
+<style>
+.border-left-success {
+  border-left: 0.25rem solid #1cc88a !important;
+}
+
+.border-left-danger {
+  border-left: 0.25rem solid #e74a3b !important;
+}
+
+.border-left-warning {
+  border-left: 0.25rem solid #f6c23e !important;
+}
+
+.border-left-info {
+  border-left: 0.25rem solid #36b9cc !important;
+}
+
+.progress-sm {
+  height: 0.5rem;
+}
+
+.fa-2x {
+  font-size: 2em;
+}
+
+.text-xs {
+  font-size: 0.7rem;
+}
+</style>
+{% endblock %}

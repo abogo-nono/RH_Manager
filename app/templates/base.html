@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>RH Manager</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+  <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css' rel='stylesheet' />
+
+
+  <style>
+    body {
+      min-height: 100vh;
+      background-color: #f8f9fa;
+    }
+
+    /* Sidebar fixe desktop */
+    .sidebar-fixed {
+      width: 250px;
+      min-height: 100vh;
+      background-color: #fff;
+      border-right: 1px solid #dee2e6;
+    }
+
+    .sidebar-fixed .nav-link {
+      color: #333;
+    }
+
+    .sidebar-fixed .nav-link.active {
+      background-color: #0d6efd;
+      color: #fff;
+    }
+
+    /* Navbar */
+    .navbar-custom {
+      background-color: #0d6efd;
+      width: 100%;
+    }
+
+    /* Contenu principal */
+    .content {
+      margin-left: 250px;
+      padding: 20px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .navbar-custom {
+        width: 100%;
+      }
+      .sidebar-fixed {
+        display: none;
+      }
+      .content {
+        margin-left: 0;
+      }
+    }
+
+    .animate-slide {
+    transform: translateX(100%);
+    opacity: 0;
+    animation: slideIn 0.6s ease-out forwards, fadeOut 0.6s ease-in forwards 2s;
+  }
+
+  @keyframes slideIn {
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes fadeOut {
+    to {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+  }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar navbar-dark navbar-custom sticky-top px-3">
+    <div class="d-flex align-items-center gap-2">
+      <button class="btn btn-outline-light d-md-none me-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasSidebar" aria-controls="offcanvasSidebar">
+        <i class="bi bi-list"></i>
+      </button>
+      <span class="navbar-brand mb-0">RH Manager</span>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <div class="dropdown">
+        <button class="btn btn-outline-light rounded-pill d-flex align-items-center" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="gap: 0.5rem;">
+          <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px;">
+            <i class="bi bi-person"></i>
+          </div>
+          <span>{{ current_user.nom_utilisateur }}</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+          <li class="dropdown-item disabled"> {{ current_user.role.nom }}</li>
+          <li><hr class="dropdown-divider"></li>
+          <li><button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#profilModal">Modifier mes informations</button></li>
+          <li><a class="dropdown-item" href="{{ url_for('auth.change_password') }}">
+            <i class="bi bi-key me-2"></i>Changer mot de passe
+          </a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">Déconnexion</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Sidebar fixe desktop -->
+  <div class="sidebar-fixed position-fixed p-3 d-none d-md-block">
+    <ul class="nav nav-pills flex-column mb-auto">
+      <li class="nav-item">
+  <a href="{{ url_for('dashboard.dashboard') }}" class="nav-link {% if request.path == '/' %}active{% endif %}">
+    <i class="bi bi-speedometer2 me-2"></i> Tableau de bord
+  </a>
+</li>
+
+{% set codes = current_user.role.permissions | map(attribute='code') | list %}
+{% if 'employes' in codes %}
+<li>
+  <a href="{{ url_for('rh.list_employes') }}" class="nav-link {% if '/employes' in request.path %}active{% endif %}">
+    <i class="bi bi-people-fill me-2"></i> Employés
+  </a>
+</li>
+{% endif %}
+
+{% if 'absences_conges' in codes %}
+<li>
+  <a href="{{ url_for('conges_temps.index') }}" class="nav-link {% if '/conges' in request.path %}active{% endif %}">
+    <i class="bi bi-calendar-check-fill me-2"></i> Congés & Présences
+  </a>
+</li>
+{% endif %}
+  
+{% if 'evaluations' in codes %}
+<li>
+  <a href="{{ url_for('evaluation.dashboard') }}" class="nav-link {% if '/evaluations' in request.path %}active{% endif %}">
+    <i class="bi bi-clipboard-check-fill me-2"></i> Évaluations
+  </a>
+</li>
+{% endif %}
+
+{% if 'paie' in codes %}
+<li>
+  <a href="{{ url_for('paie.dashboard') }}" class="nav-link {% if '/paie' in request.path %}active{% endif %}">
+    <i class="bi bi-currency-dollar me-2"></i> Paie
+  </a>
+</li>
+{% endif %}
+
+{% if 'recrutement' in codes %}
+<li>
+  <a href="{{ url_for('recrutement.list_offres') }}" class="nav-link {% if '/recrutement' in request.path %}active{% endif %}">
+    <i class="bi bi-briefcase-fill me-2"></i> Recrutement
+  </a>
+</li>
+{% endif %}
+
+{% if 'parametres' in codes %}
+<li>
+  <a href="{{ url_for('parametres.utilisateurs') }}" class="nav-link {% if '/parametres' in request.path %}active{% endif %}">
+    <i class="bi bi-gear-fill me-2"></i> Paramètres
+  </a>
+</li>
+{% endif %}
+
+    </ul>
+  </div>
+
+  <!-- Sidebar Offcanvas mobile -->
+  <div class="offcanvas offcanvas-start bg-white" tabindex="-1" id="offcanvasSidebar">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title">RH Manager</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body">
+      <ul class="nav nav-pills flex-column mb-auto">
+        <li class="nav-item">
+  <a href="{{ url_for('dashboard.dashboard') }}" class="nav-link {% if request.path == '/' %}active{% endif %}">
+    <i class="bi bi-speedometer2 me-2"></i> Tableau de bord
+  </a>
+</li>
+
+{% set codes = current_user.role.permissions | map(attribute='code') | list %}
+{% if 'employes' in codes %}
+<li>
+  <a href="{{ url_for('rh.list_employes') }}" class="nav-link {% if '/employes' in request.path %}active{% endif %}">
+    <i class="bi bi-people-fill me-2"></i> Employés
+  </a>
+</li>
+{% endif %}
+
+{% if 'absences_conges' in codes %}
+<li>
+  <a href="{{ url_for('conges_temps.index') }}" class="nav-link {% if '/conges' in request.path %}active{% endif %}">
+    <i class="bi bi-calendar-check-fill me-2"></i> Congés & Présences
+  </a>
+</li>
+{% endif %}
+
+{% if 'evaluations' in codes %}
+<li>
+  <a href="{{ url_for('evaluation.dashboard') }}" class="nav-link {% if '/evaluations' in request.path %}active{% endif %}">
+    <i class="bi bi-clipboard-check-fill me-2"></i> Évaluations
+  </a>
+</li>
+{% endif %}
+
+{% if 'paie' in codes %}
+<li>
+  <a href="{{ url_for('paie.dashboard') }}" class="nav-link {% if '/paie' in request.path %}active{% endif %}">
+    <i class="bi bi-currency-dollar me-2"></i> Paie
+  </a>
+</li>
+{% endif %}
+
+{% if 'recrutement' in codes %}
+<li>
+  <a href="{{ url_for('recrutement.list_offres') }}" class="nav-link {% if '/recrutement' in request.path %}active{% endif %}">
+    <i class="bi bi-briefcase-fill me-2"></i> Recrutement
+  </a>
+</li>
+{% endif %}
+
+{% if 'parametres' in codes %}
+<li>
+  <a href="{{ url_for('parametres.utilisateurs') }}" class="nav-link {% if '/parametres' in request.path %}active{% endif %}">
+    <i class="bi bi-gear-fill me-2"></i> Paramètres
+  </a>
+</li>
+{% endif %}
+
+      </ul>
+    </div>
+  </div>
+
+  <!-- Loader Global -->
+<div id="globalLoader" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.8); z-index: 2000; display: none; justify-content: center; align-items: center;">
+  <div class="spinner-border text-primary" role="status" style="width: 4rem; height: 4rem;">
+  </div>
+  <span class="visually text-primary">Chargement...</span>
+</div>
+
+  <!-- Contenu principal -->
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Container de messages flash -->
+<div class="position-fixed top-0 end-0 p-3" style="z-index: 2000;">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="toast align-items-center shadow mb-3 p-3 text-white bg-{{ 'danger' if category == 'error' else category }} animate-slide show"
+             role="alert" aria-live="assertive" aria-atomic="true">
+          <div class="d-flex align-items-center">
+            <div class="fs-3 me-3">
+              {% if category == 'success' %}✔️
+              {% elif category == 'error' %}❌
+              {% elif category == 'warning' %}⚠️
+              {% elif category == 'info' %}ℹ️
+              {% endif %}
+            </div>
+            <div class="toast-body">
+              <strong class="text-capitalize me-2">{{ category }}</strong><br>{{ message }}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+</div>
+
+
+  <!-- Modal : Modifier mes informations -->
+<div class="modal fade" id="profilModal" tabindex="-1" aria-labelledby="profilModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="POST" action="{{ url_for('parametres.modifier_mon_compte') }}" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="profilModalLabel">Modifier mes informations</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body">
+        {{ form.hidden_tag() }}
+        <div class="mb-3">{{ profil_form.nom_utilisateur.label }} {{ profil_form.nom_utilisateur(class="form-control") }}</div>
+        <div class="mb-3">{{ profil_form.nom_complet.label }} {{ profil_form.nom_complet(class="form-control") }}</div>
+        <div class="mb-3">{{ profil_form.email.label }} {{ profil_form.email(class="form-control") }}</div>
+        <div class="mb-3">{{ profil_form.mot_de_passe.label }} {{ profil_form.mot_de_passe(class="form-control") }}</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        {{ profil_form.submit(class="btn btn-primary") }}
+      </div>
+    </form>
+  </div>
+</div>
+
+  <!-- Bootstrap JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Toast auto-fermeture -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const toastElList = [].slice.call(document.querySelectorAll('.toast'));
+      toastElList.forEach(function (toastEl) {
+        new bootstrap.Toast(toastEl).show();
+      });
+    });
+  </script>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+
+    // Activer le loader quand un formulaire est soumis
+    const forms = document.querySelectorAll("form");
+    forms.forEach(function(form) {
+      form.addEventListener("submit", function() {
+        document.getElementById("globalLoader").style.display = "flex";
+      });
+    });
+
+    // Option : cacher le loader après 10 sec max en cas de blocage serveur
+    setTimeout(() => {
+      document.getElementById("globalLoader").style.display = "none";
+    }, 1000);
+
+  });
+</script>
+
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+  <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.js'></script>
+
+  <script>
+  $(document).ready(function() {
+    $('.datatable').DataTable({
+      language: {
+        decimal: "",
+        emptyTable: "Aucune donnée disponible",
+        info: "Affichage de _START_ à _END_ sur _TOTAL_ entrées",
+        infoEmpty: "Affichage de 0 à 0 sur 0 entrées",
+        infoFiltered: "(filtré de _MAX_ entrées totales)",
+        lengthMenu: "Afficher _MENU_ entrées",
+        loadingRecords: "Chargement...",
+        processing: "Traitement...",
+        search: "Rechercher :",
+        zeroRecords: "Aucun enregistrement correspondant trouvé",
+        paginate: {
+          first: "Premier",
+          last: "Dernier",
+          next: "Suivant",
+          previous: "Précédent"
+        },
+        aria: {
+          sortAscending: ": activer pour trier la colonne par ordre croissant",
+          sortDescending: ": activer pour trier la colonne par ordre décroissant"
+        }
+      },
+      dom:
+        "<'row mb-3'<'col-sm-6'f><'col-sm-6 text-end'B>>" +
+        "<'row'<'col-sm-12'tr>>" +
+        "<'row mt-3'<'col-sm-5'i><'col-sm-7'p>>",
+      buttons: [],
+      searching: true,
+    });
+  });
+</script>
+
+</body>
+</html>

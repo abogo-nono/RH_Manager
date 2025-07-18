@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+
+{% block title %}Détail des Heures - Présences{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="h4 mb-0">
+                        <i class="fas fa-info-circle text-info me-2"></i>
+                        Détail des Heures de Travail
+                    </h2>
+                    <p class="text-muted mb-0">
+                        {{ employe.prenom }} {{ employe.nom }} - {{ date.strftime('%d/%m/%Y') }}
+                    </p>
+                </div>
+                <div>
+                    <a href="{{ url_for('conges_temps.gestion_heures') }}" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-arrow-left me-1"></i>Retour
+                    </a>
+                    {% if current_user.has_permission('gestion_presences') %}
+                    <a href="{{ url_for('conges_temps.modifier_heures', id=heure.id) }}" class="btn btn-primary">
+                        <i class="fas fa-edit me-1"></i>Modifier
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Informations principales -->
+        <div class="col-lg-8">
+            <!-- Résumé des heures -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>
+                        Résumé de la Journée
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-item mb-3">
+                                <label class="form-label text-muted">Heure d'arrivée</label>
+                                <div class="h5 text-success">
+                                    {{ heure.heure_arrivee.strftime('%H:%M') if heure.heure_arrivee else 'Non renseignée' }}
+                                    {% if heure.retard_minutes > 0 %}
+                                        <span class="badge bg-warning ms-2">{{ heure.retard_minutes }} min de retard</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item mb-3">
+                                <label class="form-label text-muted">Heure de départ</label>
+                                <div class="h5 text-danger">
+                                    {{ heure.heure_depart.strftime('%H:%M') if heure.heure_depart else 'Non renseignée' }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-item mb-3">
+                                <label class="form-label text-muted">Pause</label>
+                                <div class="h6">
+                                    {% if heure.debut_pause and heure.fin_pause %}
+                                        {{ heure.debut_pause.strftime('%H:%M') }} - {{ heure.fin_pause.strftime('%H:%M') }}
+                                        <small class="text-muted">
+                                            ({{ ((heure.fin_pause.hour * 60 + heure.fin_pause.minute) - (heure.debut_pause.hour * 60 + heure.debut_pause.minute)) }} min)
+                                        </small>
+                                    {% else %}
+                                        <span class="text-muted">Aucune pause</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item mb-3">
+                                <label class="form-label text-muted">Type de journée</label>
+                                <div class="h6">
+                                    <span class="badge bg-info">{{ heure.type_journee or 'Normal' }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if heure.commentaires %}
+                    <div class="info-item">
+                        <label class="form-label text-muted">Commentaires</label>
+                        <div class="alert alert-light">
+                            {{ heure.commentaires }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Historique des pointages -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        Historique des Pointages
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if pointages %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Heure</th>
+                                    <th>Type</th>
+                                    <th>Méthode</th>
+                                    <th>Localisation</th>
+                                    <th>Commentaire</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pointage in pointages %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ pointage.heure.strftime('%H:%M:%S') }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if pointage.type == 'arrivee' %}
+                                            <span class="badge bg-success">Arrivée</span>
+                                        {% elif pointage.type == 'depart' %}
+                                            <span class="badge bg-danger">Départ</span>
+                                        {% elif pointage.type == 'pause_debut' %}
+                                            <span class="badge bg-warning">Début pause</span>
+                                        {% elif pointage.type == 'pause_fin' %}
+                                            <span class="badge bg-info">Fin pause</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ pointage.methode or 'Manuel' }}</small>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ pointage.localisation or '-' }}</small>
+                                    </td>
+                                    <td>
+                                        <small>{{ pointage.commentaire or '-' }}</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-clock fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Aucun pointage enregistré pour cette journée.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Panneau latéral -->
+        <div class="col-lg-4">
+            <!-- Statistiques -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        Statistiques
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="stat-item">
+                                <h4 class="text-primary">{{ "%.1f"|format(heure.heures_normales) }}</h4>
+                                <small class="text-muted">Heures normales</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="stat-item">
+                                <h4 class="text-warning">{{ "%.1f"|format(heure.heures_supplementaires) }}</h4>
+                                <small class="text-muted">Heures sup.</small>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <span><strong>Total journée:</strong></span>
+                        <span class="h5 text-primary">{{ "%.1f"|format(heure.total_heures) }}h</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statut -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-check-circle me-2"></i>
+                        Statut
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        {% if heure.statut == 'validee' %}
+                            <i class="fas fa-check-circle text-success fa-2x me-3"></i>
+                            <div>
+                                <h6 class="text-success mb-0">Validée</h6>
+                                <small class="text-muted">
+                                    Validée le {{ heure.date_validation.strftime('%d/%m/%Y') if heure.date_validation }}
+                                    {% if heure.validee_par %}par {{ heure.validee_par.username }}{% endif %}
+                                </small>
+                            </div>
+                        {% elif heure.statut == 'en_attente' %}
+                            <i class="fas fa-clock text-warning fa-2x me-3"></i>
+                            <div>
+                                <h6 class="text-warning mb-0">En attente</h6>
+                                <small class="text-muted">En attente de validation</small>
+                            </div>
+                        {% elif heure.statut == 'rejetee' %}
+                            <i class="fas fa-times-circle text-danger fa-2x me-3"></i>
+                            <div>
+                                <h6 class="text-danger mb-0">Rejetée</h6>
+                                <small class="text-muted">Nécessite une correction</small>
+                            </div>
+                        {% else %}
+                            <i class="fas fa-edit text-info fa-2x me-3"></i>
+                            <div>
+                                <h6 class="text-info mb-0">Brouillon</h6>
+                                <small class="text-muted">Non finalisée</small>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions rapides -->
+            {% if current_user.has_permission('gestion_presences') %}
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-tools me-2"></i>
+                        Actions Rapides
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if heure.statut == 'en_attente' %}
+                        <button class="btn btn-success btn-sm" onclick="validerHeures({{ heure.id }})">
+                            <i class="fas fa-check me-1"></i>Valider
+                        </button>
+                        <button class="btn btn-warning btn-sm" onclick="rejeterHeures({{ heure.id }})">
+                            <i class="fas fa-times me-1"></i>Rejeter
+                        </button>
+                        {% endif %}
+                        
+                        <a href="{{ url_for('conges_temps.modifier_heures', id=heure.id) }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-edit me-1"></i>Modifier
+                        </a>
+                        
+                        <button class="btn btn-outline-secondary btn-sm" onclick="imprimerDetail()">
+                            <i class="fas fa-print me-1"></i>Imprimer
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.info-item {
+    border-left: 3px solid #007bff;
+    padding-left: 15px;
+}
+
+.stat-item {
+    padding: 10px;
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+@media print {
+    .btn, .card-header, nav, .sidebar {
+        display: none !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+</style>
+
+<script>
+function validerHeures(id) {
+    if (confirm('Confirmer la validation de ces heures ?')) {
+        fetch(`/conges_temps/presences/api/valider/${id}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erreur: ' + data.message);
+            }
+        });
+    }
+}
+
+function rejeterHeures(id) {
+    const motif = prompt('Motif du rejet:');
+    if (motif) {
+        fetch(`/conges_temps/presences/api/rejeter/${id}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ motif: motif })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erreur: ' + data.message);
+            }
+        });
+    }
+}
+
+function imprimerDetail() {
+    window.print();
+}
+</script>
+{% endblock %}

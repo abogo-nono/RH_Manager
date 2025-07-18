@@ -1,0 +1,249 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2>Paramètres</h2>
+<ul class="nav nav-tabs mb-4">
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'utilisateurs' %}active{% endif %}" href="{{ url_for('parametres.utilisateurs') }}">Utilisateurs</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'conges' %}active{% endif %}" href="{{ url_for('parametres.conges') }}">Congés</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'paie' %}active{% endif %}" href="{{ url_for('parametres.parametres_paie') }}">Paie</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'presences' %}active{% endif %}" href="{{ url_for('parametres.parametres_presences') }}">Présences</a>
+  </li>
+</ul>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h5 class="mb-0">Utilisateurs du système</h5>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalAjoutUtilisateur">Ajouter un utilisateur</button>
+</div>
+
+<div class="container mt-4">
+  <!-- Tableau -->
+  <table class="table table-light table-hover">
+    <thead>
+      <tr>
+        <th>Nom d'utilisateur</th>
+        <th>Nom complet</th>
+        <th>Rôle</th>
+        <th>Email</th>
+        <th>Statut</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user in utilisateurs %}
+        <tr>
+          <td>{{ user.nom_utilisateur }}</td>
+          <td>{{ user.nom_complet }}</td>
+          <td>{{ user.role.nom }}</td>
+          <td>{{ user.email }}</td>
+          <td>
+            {% if user.actif %}
+              <span class="badge bg-success">Actif</span> 
+            {% else %}
+              <span class="badge bg-secondary">Inactif</span>
+            {% endif %}
+          </td>
+          <td>
+            <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modifierUtilisateurModal{{ user.id }}">
+              <i class="bi bi-pencil"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal{{ user.id }}">
+              <i class="bi bi-trash"></i>
+            </button>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <hr>
+
+  <!-- Bouton pour ouvrir le modal d’ajout de rôle -->
+<div class="d-flex justify-content-between align-items-center mb-3 mt-4">
+  <h5 class="mt-0">Rôles et permissions</h5>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addRoleModal">
+    Ajouter un rôle
+  </button>
+</div>
+
+<!-- Tableau des rôles et permissions -->
+<div class="table-responsive">
+  <table class="table table-bordered text-center align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>Rôle</th>
+        {% for perm in permissions %}
+          <th>{{ perm.nom }}</th>
+        {% endfor %}
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for role in roles %}
+        <tr>
+          <td>{{ role.nom }}</td>
+          {% for perm in permissions %}
+            <td>
+              {% if perm in role.permissions %}
+                <i class="bi bi-person-fill text-success"></i>
+              {% else %}
+                <i class="bi bi-person-fill-x text-danger"></i>
+              {% endif %}
+            </td>
+          {% endfor %}
+          <td>
+            <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal"data-bs-target="#editPermissionsModal{{ role.id }}">Modifier</button>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Modal : Ajouter un rôle -->
+<div class="modal fade" id="addRoleModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form class="modal-content" method="post" action="{{ url_for('parametres.ajouter_role') }}">
+      <div class="modal-header">
+        <h5 class="modal-title">Ajouter un rôle</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label for="nom_role" class="form-label">Nom du rôle</label>
+        <input type="text" class="form-control" name="nom" id="nom_role" required>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" class="btn btn-primary">Ajouter</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modals : Modifier les permissions (1 modal par rôle) -->
+{% for role in roles %}
+<div class="modal fade" id="editPermissionsModal{{ role.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form class="modal-content" method="post" action="{{ url_for('parametres.modifier_permissions', role_id=role.id) }}">
+      <div class="modal-header">
+        <h5 class="modal-title">Modifier les permissions pour {{ role.nom }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {% for perm in permissions %}
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="permissions" value="{{ perm.id }}"
+                   id="perm{{ role.id }}_{{ perm.id }}"
+                   {% if perm in role.permissions %}checked{% endif %}>
+            <label class="form-check-label" for="perm{{ role.id }}_{{ perm.id }}">
+              {{ perm.nom }}
+            </label>
+          </div>
+        {% endfor %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" class="btn btn-success">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endfor %}
+
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="modalAjoutUtilisateur" tabindex="-1" aria-labelledby="modalAjoutUtilisateurLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content text-dark bg-light">
+      <div class="modal-header">
+        <h5 class="modal-title">Ajouter un utilisateur</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST">
+        <div class="modal-body">
+          {{ form.hidden_tag() }}
+          <div class="mb-3">{{ form.nom_utilisateur.label }} {{ form.nom_utilisateur(class="form-control") }}</div>
+          <div class="mb-3">{{ form.nom_complet.label }} {{ form.nom_complet(class="form-control") }}</div>
+          <div class="mb-3">{{ form.email.label }} {{ form.email(class="form-control") }}</div>
+          <div class="mb-3">{{ form.role.label }} {{ form.role(class="form-select") }}</div>
+          <div class="mb-3">{{ form.mot_de_passe.label }} {{ form.mot_de_passe(class="form-control") }}</div>
+          <div class="form-check form-switch">{{ form.actif(class="form-check-input") }} {{ form.actif.label }}</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          {{ form.submit(class="btn btn-primary") }}
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% for user in utilisateurs %}
+<!-- Modal Modifier Utilisateur -->
+<div class="modal fade" id="modifierUtilisateurModal{{ user.id }}" tabindex="-1" aria-labelledby="modifierUtilisateurModalLabel{{ user.id }}" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="POST" action="{{ url_for('parametres.modifier_utilisateur', id=user.id) }}">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modifierUtilisateurModalLabel{{ user.id }}">Modifier l’utilisateur</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Nom d’utilisateur</label>
+            <input type="text" class="form-control" name="nom_utilisateur" value="{{ user.nom_utilisateur }}" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Nom complet</label>
+            <input type="text" class="form-control" name="nom_complet" value="{{ user.nom_complet }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" name="email" value="{{ user.email }}" required>
+          </div>
+          <div class="mb-3">
+            {{ form.role.label }} {{ form.role(class="form-select") }}
+          </div>
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" role="switch" name="actif" id="actifSwitch{{ user.id }}" {% if user.actif %}checked{% endif %}>
+            <label class="form-check-label" for="actifSwitch{{ user.id }}">Compte actif</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal de confirmation de suppression -->
+<div class="modal fade" id="confirmDeleteModal{{ user.id }}" tabindex="-1" aria-labelledby="confirmDeleteLabel{{ user.id }}" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="POST" action="{{ url_for('parametres.supprimer_utilisateur', id=user.id) }}">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="confirmDeleteLabel{{ user.id }}">Confirmer la suppression</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          Voulez-vous vraiment supprimer l’utilisateur <strong>{{ user.nom_utilisateur }}</strong> ?
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-danger">Supprimer</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endfor %}
+
+{% endblock %}

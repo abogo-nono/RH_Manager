@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2>Paramètres</h2>
+<ul class="nav nav-tabs mb-4">
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'utilisateurs' %}active{% endif %}" href="{{ url_for('parametres.utilisateurs') }}">Utilisateurs</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'conges' %}active{% endif %}" href="{{ url_for('parametres.conges') }}">Congés</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'paie' %}active{% endif %}" href="{{ url_for('parametres.parametres_paie') }}">Paie</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'presences' %}active{% endif %}" href="{{ url_for('parametres.parametres_presences') }}">Présences</a>
+  </li>
+</ul>
+
+<div class="container-fluid">
+  <form method="POST" action="{{ url_for('parametres.parametres_paie') }}">
+    {{ form.hidden_tag() }}
+
+    <div class="row">
+      <div class="col-md-6">
+        <h5>Variables de paie</h5>
+        <div class="mb-3">
+          {{ form.smic_horaire.label(class="form-label") }}
+          {{ form.smic_horaire(class="form-control") }}
+        </div>
+        <div class="mb-3">
+          {{ form.plafond_cnps.label(class="form-label") }}
+          {{ form.plafond_cnps(class="form-control") }}
+        </div>
+
+        
+        <!-- Bouton d’ajout -->
+<div class="d-flex justify-content-between align-items-center mb-1 mt-4">
+  <h5 class="mb-3">Taux de cotisations</h5>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#ajouterCotisationModal">
+    Ajouter une cotisation
+  </button>
+</div>
+
+<!-- Modal d’ajout de cotisation -->
+<div class="modal fade" id="ajouterCotisationModal" tabindex="-1" aria-labelledby="ajouterCotisationModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content bg-white text-dark">
+      <form method="POST" action="{{ url_for('parametres.ajouter_cotisation') }}">
+        <div class="modal-header">
+          <h5 class="modal-title" id="ajouterCotisationModalLabel">Nouvelle cotisation</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          {{ form_ajout.hidden_tag() }}
+          <div class="mb-3">
+            {{ form_ajout.libelle.label }} {{ form_ajout.libelle(class="form-control") }}
+          </div>
+          <div class="mb-3">
+            {{ form_ajout.taux_salarial.label }} {{ form_ajout.taux_salarial(class="form-control") }}
+          </div>
+          <div class="mb-3">
+            {{ form_ajout.taux_patronal.label }} {{ form_ajout.taux_patronal(class="form-control") }}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          {{ form_ajout.submit(class="btn btn-success") }}
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+        <table class="table table-bordered">
+          <thead>
+            <tr>
+              <th>Cotisation</th>
+              <th>Part salariale</th>
+              <th>Part patronale</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for cotisation in cotisations %}
+              <tr>
+                <td>{{ cotisation.libelle }}</td>
+                <td>{{ cotisation.taux_salarial }}%</td>
+                <td>{{ cotisation.taux_patronal }}%</td>
+                <td>
+                  <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modifierCotisationModal{{ cotisation.id }}">Modifier</button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="col-md-6">
+        <h5>Paramètres de calcul</h5>
+        <div class="form-check form-switch mb-3">
+          {{ form.auto_calcule(class="form-check-input") }}
+          {{ form.auto_calcule.label(class="form-check-label") }}
+        </div>
+        <div class="mb-3">
+          {{ form.jour_paiement.label(class="form-label") }}
+          {{ form.jour_paiement(class="form-select") }}
+        </div>
+
+        <h5>Configuration des heures</h5>
+        <div class="mb-3">
+          {{ form.heures_hebdo.label(class="form-label") }}
+          {{ form.heures_hebdo(class="form-control") }}
+        </div>
+        <div class="mb-3">
+          {{ form.hs_25.label(class="form-label") }}
+          {{ form.hs_25(class="form-control") }}
+        </div>
+        <div class="mb-3">
+          {{ form.hs_50.label(class="form-label") }}
+          {{ form.hs_50(class="form-control") }}
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end mt-4">
+      <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+    </div>
+  </form>
+</div>
+
+<!-- Modals : Modification cotisation -->
+{% for cotisation in cotisations %}
+<div class="modal fade" id="modifierCotisationModal{{ cotisation.id }}" tabindex="-1" aria-labelledby="modifierCotisationModalLabel{{ cotisation.id }}" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="POST" action="{{ url_for('parametres.modifier_cotisation', id=cotisation.id) }}" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modifierCotisationModalLabel{{ cotisation.id }}">Modifier {{ cotisation.libelle }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="taux_salarial{{ cotisation.id }}" class="form-label">Taux salarial (%)</label>
+          <input type="number" step="0.01" name="taux_salarial" class="form-control" id="taux_salarial{{ cotisation.id }}" value="{{ cotisation.taux_salarial }}" required>
+        </div>
+        <div class="mb-3">
+          <label for="taux_patronal{{ cotisation.id }}" class="form-label">Taux patronal (%)</label>
+          <input type="number" step="0.01" name="taux_patronal" class="form-control" id="taux_patronal{{ cotisation.id }}" value="{{ cotisation.taux_patronal }}" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-success">Enregistrer</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endfor %}
+
+{% endblock %}

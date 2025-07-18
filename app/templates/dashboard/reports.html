@@ -1,0 +1,478 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- En-tête -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h2><i class="bi bi-file-text me-2"></i>Rapports et Analytics</h2>
+          <p class="text-muted">Génération de rapports et analyses des données RH</p>
+        </div>
+        <div>
+          <a href="{{ url_for('dashboard.dashboard') }}" class="btn btn-outline-secondary me-2">
+            <i class="bi bi-arrow-left me-1"></i>Retour au dashboard
+          </a>
+          <a href="{{ url_for('dashboard.advanced_dashboard') }}" class="btn btn-outline-success">
+            <i class="bi bi-graph-up-arrow me-1"></i>Analytics Avancé
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filtres généraux -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-funnel me-2"></i>Filtres généraux</h5>
+        </div>
+        <div class="card-body">
+          <form id="reportFilters" class="row g-3">
+            <div class="col-md-3">
+              <label class="form-label">Période</label>
+              <select class="form-select" id="periode">
+                <option value="current_month">Mois en cours</option>
+                <option value="last_month">Mois dernier</option>
+                <option value="current_quarter">Trimestre en cours</option>
+                <option value="current_year">Année en cours</option>
+                <option value="custom">Personnalisée</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Département</label>
+              <select class="form-select" id="departement">
+                <option value="">Tous les départements</option>
+                <option value="IT">IT</option>
+                <option value="Finance">Finance</option>
+                <option value="RH">Ressources Humaines</option>
+                <option value="Administration">Administration</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Date de début</label>
+              <input type="date" class="form-control" id="dateDebut">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Date de fin</label>
+              <input type="date" class="form-control" id="dateFin">
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rapports disponibles -->
+  <div class="row">
+    {% for rapport in rapports %}
+    <div class="col-lg-4 col-md-6 mb-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-start">
+            <div class="flex-shrink-0">
+              <i class="{{ rapport.icon }} fs-2 text-primary"></i>
+            </div>
+            <div class="flex-grow-1 ms-3">
+              <h5 class="card-title">{{ rapport.title }}</h5>
+              <p class="card-text text-muted">{{ rapport.description }}</p>
+              
+              <!-- Formats disponibles -->
+              <div class="mb-3">
+                <small class="text-muted">Formats disponibles:</small>
+                <div class="mt-1">
+                  {% for format in rapport.formats %}
+                  <span class="badge bg-secondary me-1">{{ format }}</span>
+                  {% endfor %}
+                </div>
+              </div>
+              
+              <!-- Actions -->
+              <div class="btn-group w-100" role="group">
+                <button class="btn btn-primary btn-sm" onclick="generateReport('{{ rapport.id }}', 'preview')">
+                  <i class="bi bi-eye me-1"></i>Aperçu
+                </button>
+                <button class="btn btn-outline-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                  <i class="bi bi-download me-1"></i>Export
+                </button>
+                <ul class="dropdown-menu">
+                  {% for format in rapport.formats %}
+                  <li>
+                    <a class="dropdown-item" href="#" onclick="generateReport('{{ rapport.id }}', '{{ format.lower() }}')">
+                      <i class="bi bi-file-earmark-{{ format.lower() }} me-2"></i>{{ format }}
+                    </a>
+                  </li>
+                  {% endfor %}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Rapports personnalisés -->
+  <div class="row mt-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-gear me-2"></i>Rapport personnalisé</h5>
+        </div>
+        <div class="card-body">
+          <form id="customReportForm" class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Titre du rapport</label>
+              <input type="text" class="form-control" id="reportTitle" placeholder="Mon rapport personnalisé">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Type de données</label>
+              <select class="form-select" id="dataType">
+                <option value="">Sélectionner...</option>
+                <option value="employees">Employés</option>
+                <option value="absences">Absences</option>
+                <option value="conges">Congés</option>
+                <option value="evaluations">Évaluations</option>
+                <option value="paie">Paie</option>
+              </select>
+            </div>
+            <div class="col-md-12">
+              <label class="form-label">Colonnes à inclure</label>
+              <div id="columnsSelection" class="row g-2">
+                <!-- Les colonnes seront ajoutées dynamiquement -->
+              </div>
+            </div>
+            <div class="col-md-12">
+              <button type="button" class="btn btn-success" onclick="generateCustomReport()">
+                <i class="bi bi-magic me-1"></i>Générer le rapport
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Historique des rapports -->
+  <div class="row mt-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Historique des rapports</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Rapport</th>
+                  <th>Type</th>
+                  <th>Date de génération</th>
+                  <th>Généré par</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="reportsHistory">
+                <!-- L'historique sera chargé dynamiquement -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de prévisualisation -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Aperçu du rapport</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="previewContent">
+          <!-- Le contenu de prévisualisation sera inséré ici -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+        <button type="button" class="btn btn-primary" onclick="exportFromPreview()">Exporter</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialiser les filtres
+    initializeFilters();
+    
+    // Charger l'historique des rapports
+    loadReportsHistory();
+    
+    // Gestion du changement de type de données pour le rapport personnalisé
+    document.getElementById('dataType').addEventListener('change', function() {
+        updateColumnsSelection(this.value);
+    });
+});
+
+function initializeFilters() {
+    // Définir les dates par défaut
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    document.getElementById('dateDebut').value = firstDay.toISOString().split('T')[0];
+    document.getElementById('dateFin').value = lastDay.toISOString().split('T')[0];
+}
+
+function generateReport(reportId, format) {
+    // Récupérer les filtres
+    const filters = {
+        periode: document.getElementById('periode').value,
+        departement: document.getElementById('departement').value,
+        dateDebut: document.getElementById('dateDebut').value,
+        dateFin: document.getElementById('dateFin').value
+    };
+    
+    if (format === 'preview') {
+        // Afficher l'aperçu
+        showPreview(reportId, filters);
+    } else {
+        // Générer et télécharger le rapport
+        downloadReport(reportId, format, filters);
+    }
+}
+
+function showPreview(reportId, filters) {
+    // Simuler le chargement des données
+    document.getElementById('previewContent').innerHTML = `
+        <div class="text-center p-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Chargement...</span>
+            </div>
+            <p class="mt-2">Génération de l'aperçu...</p>
+        </div>
+    `;
+    
+    // Afficher le modal
+    const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+    modal.show();
+    
+    // Simuler le chargement des données
+    setTimeout(() => {
+        document.getElementById('previewContent').innerHTML = generatePreviewContent(reportId);
+    }, 1500);
+}
+
+function generatePreviewContent(reportId) {
+    // Contenu de prévisualisation simulé
+    const previewData = {
+        'employes': `
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Nom</th>
+                        <th>Poste</th>
+                        <th>Département</th>
+                        <th>Date d'embauche</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Jean Dupont</td>
+                        <td>Développeur</td>
+                        <td>IT</td>
+                        <td>15/01/2024</td>
+                    </tr>
+                    <tr>
+                        <td>Marie Martin</td>
+                        <td>Comptable</td>
+                        <td>Finance</td>
+                        <td>03/03/2024</td>
+                    </tr>
+                </tbody>
+            </table>
+        `,
+        'conges': `
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Employé</th>
+                        <th>Type</th>
+                        <th>Date début</th>
+                        <th>Date fin</th>
+                        <th>Statut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Jean Dupont</td>
+                        <td>Congé annuel</td>
+                        <td>01/08/2024</td>
+                        <td>15/08/2024</td>
+                        <td><span class="badge bg-success">Approuvé</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        `
+    };
+    
+    return previewData[reportId] || '<p>Aucune donnée disponible pour ce rapport.</p>';
+}
+
+function downloadReport(reportId, format, filters) {
+    // Simuler le téléchargement
+    const loadingToast = `
+        <div class="toast show" role="alert">
+            <div class="toast-body">
+                <div class="d-flex align-items-center">
+                    <div class="spinner-border spinner-border-sm me-2"></div>
+                    Génération du rapport en cours...
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Afficher le toast de chargement
+    showToast('Génération du rapport en cours...', 'info');
+    
+    // Simuler le téléchargement après 2 secondes
+    setTimeout(() => {
+        showToast('Rapport téléchargé avec succès!', 'success');
+    }, 2000);
+}
+
+function updateColumnsSelection(dataType) {
+    const columnsContainer = document.getElementById('columnsSelection');
+    
+    const columns = {
+        'employees': ['Nom', 'Prénom', 'Poste', 'Département', 'Email', 'Date d\'embauche'],
+        'absences': ['Employé', 'Date', 'Motif', 'Justification', 'Statut'],
+        'conges': ['Employé', 'Type', 'Date début', 'Date fin', 'Durée', 'Statut'],
+        'evaluations': ['Employé', 'Date', 'Score', 'Évaluateur', 'Statut'],
+        'paie': ['Employé', 'Période', 'Salaire brut', 'Salaire net', 'Statut']
+    };
+    
+    if (columns[dataType]) {
+        columnsContainer.innerHTML = columns[dataType].map(col => `
+            <div class="col-md-4">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" value="${col}" id="col_${col.replace(/\s+/g, '_')}" checked>
+                    <label class="form-check-label" for="col_${col.replace(/\s+/g, '_')}">
+                        ${col}
+                    </label>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        columnsContainer.innerHTML = '<p class="text-muted">Sélectionnez un type de données</p>';
+    }
+}
+
+function generateCustomReport() {
+    const title = document.getElementById('reportTitle').value;
+    const dataType = document.getElementById('dataType').value;
+    
+    if (!title || !dataType) {
+        showToast('Veuillez remplir tous les champs requis', 'error');
+        return;
+    }
+    
+    // Récupérer les colonnes sélectionnées
+    const selectedColumns = Array.from(document.querySelectorAll('#columnsSelection input:checked'))
+        .map(cb => cb.value);
+    
+    showToast('Génération du rapport personnalisé...', 'info');
+    
+    // Simuler la génération
+    setTimeout(() => {
+        showToast('Rapport personnalisé généré avec succès!', 'success');
+    }, 2000);
+}
+
+function loadReportsHistory() {
+    // Simuler le chargement de l'historique
+    const history = [
+        {
+            name: 'Rapport Employés',
+            type: 'PDF',
+            date: '2025-07-18 10:30',
+            user: 'Admin',
+            id: 'report_001'
+        },
+        {
+            name: 'Rapport Congés',
+            type: 'Excel',
+            date: '2025-07-17 14:15',
+            user: 'Manager RH',
+            id: 'report_002'
+        }
+    ];
+    
+    const tbody = document.getElementById('reportsHistory');
+    tbody.innerHTML = history.map(report => `
+        <tr>
+            <td>${report.name}</td>
+            <td><span class="badge bg-info">${report.type}</span></td>
+            <td>${report.date}</td>
+            <td>${report.user}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="downloadHistoryReport('${report.id}')">
+                    <i class="bi bi-download"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteHistoryReport('${report.id}')">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function downloadHistoryReport(reportId) {
+    showToast('Téléchargement du rapport...', 'info');
+}
+
+function deleteHistoryReport(reportId) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer ce rapport ?')) {
+        showToast('Rapport supprimé', 'success');
+        loadReportsHistory();
+    }
+}
+
+function showToast(message, type) {
+    // Créer et afficher un toast
+    const toastContainer = document.getElementById('toastContainer') || createToastContainer();
+    
+    const toast = document.createElement('div');
+    toast.className = `toast show align-items-center text-white bg-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'}`;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    
+    toastContainer.appendChild(toast);
+    
+    // Supprimer le toast après 3 secondes
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+    document.body.appendChild(container);
+    return container;
+}
+</script>
+{% endblock %}

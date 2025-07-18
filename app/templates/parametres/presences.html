@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2>Paramètres</h2>
+<ul class="nav nav-tabs mb-4">
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'utilisateurs' %}active{% endif %}" href="{{ url_for('parametres.utilisateurs') }}">Utilisateurs</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'conges' %}active{% endif %}" href="{{ url_for('parametres.conges') }}">Congés</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'paie' %}active{% endif %}" href="{{ url_for('parametres.parametres_paie') }}">Paie</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'presences' %}active{% endif %}" href="{{ url_for('parametres.parametres_presences') }}">Présences</a>
+  </li>
+</ul>
+
+<div class="container mt-4">
+  <form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="mb-3">{{ form.heure_arrivee.label }} {{ form.heure_arrivee(class="form-control") }}</div>
+    <div class="mb-3">{{ form.heure_depart.label }} {{ form.heure_depart(class="form-control") }}</div>
+    <div class="mb-3">{{ form.tolerance_retard.label }} {{ form.tolerance_retard(class="form-control") }}</div>
+    <div class="form-check form-switch mb-3">{{ form.notifier_retard(class="form-check-input") }} {{ form.notifier_retard.label(class="form-check-label") }}</div>
+    <div class="form-check form-switch mb-3">{{ form.notifier_absence(class="form-check-input") }} {{ form.notifier_absence.label(class="form-check-label") }}</div>
+    <div class="text-end"><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+  </form>
+</div>
+{% endblock %}

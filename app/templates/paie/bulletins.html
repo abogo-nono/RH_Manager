@@ -1,0 +1,475 @@
+{% extends "base.html" %}
+
+{% block title %}Liste des Bulletins de Paie{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-file-invoice-dollar me-2"></i>Bulletins de Paie</h2>
+            <p class="text-muted">Gestion et suivi des bulletins de paie</p>
+        </div>
+        <div>
+            <a href="{{ url_for('paie.dashboard') }}" class="btn btn-info">
+                <i class="fas fa-dashboard me-2"></i>Dashboard
+            </a>
+            <a href="{{ url_for('paie.creer_bulletin') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Nouveau Bulletin
+            </a>
+            <div class="btn-group">
+                <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-download me-2"></i>Export
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="{{ url_for('paie.export_bulletins', format='pdf') }}">PDF</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('paie.export_bulletins', format='excel') }}">Excel</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('paie.export_bulletins', format='csv') }}">CSV</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtres de recherche -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label for="search" class="form-label">Recherche</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ search }}" placeholder="Nom, prénom, matricule...">
+                </div>
+                <div class="col-md-2">
+                    <label for="statut" class="form-label">Statut</label>
+                    <select class="form-select" id="statut" name="statut">
+                        <option value="">Tous les statuts</option>
+                        <option value="brouillon" {% if statut_filter == 'brouillon' %}selected{% endif %}>Brouillon</option>
+                        <option value="validé" {% if statut_filter == 'validé' %}selected{% endif %}>Validé</option>
+                        <option value="payé" {% if statut_filter == 'payé' %}selected{% endif %}>Payé</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="mois" class="form-label">Mois</label>
+                    <select class="form-select" id="mois" name="mois">
+                        <option value="">Tous les mois</option>
+                        {% for i in range(1, 13) %}
+                            <option value="{{ i }}" {% if mois_filter == i %}selected{% endif %}>
+                                {{ ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'][i] }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="annee" class="form-label">Année</label>
+                    <select class="form-select" id="annee" name="annee">
+                        <option value="">Toutes les années</option>
+                        {% for annee in annees_disponibles %}
+                            <option value="{{ annee }}" {% if annee_filter == annee %}selected{% endif %}>{{ annee }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="departement" class="form-label">Département</label>
+                    <select class="form-select" id="departement" name="departement">
+                        <option value="">Tous les départements</option>
+                        {% for dept in departements %}
+                            <option value="{{ dept }}" {% if dept_filter == dept %}selected{% endif %}>{{ dept }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="submit" class="btn btn-primary d-block w-100">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Statistiques rapides -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-left-primary">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Total Bulletins
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_bulletins }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-file-invoice-dollar fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-left-success">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Montant Total
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ format_currency(montant_total) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-left-warning">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                En Attente
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ bulletins_en_attente }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-left-info">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Payés
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ bulletins_payes }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions de groupe -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="selectAll()">
+                        <i class="fas fa-check-double me-1"></i>Tout sélectionner
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="deselectAll()">
+                        <i class="fas fa-times me-1"></i>Désélectionner
+                    </button>
+                </div>
+                <div id="bulk-actions" style="display: none;">
+                    <button class="btn btn-sm btn-success" onclick="bulkValidate()">
+                        <i class="fas fa-check me-1"></i>Valider sélection
+                    </button>
+                    <button class="btn btn-sm btn-primary" onclick="bulkPay()">
+                        <i class="fas fa-credit-card me-1"></i>Marquer payé
+                    </button>
+                    <button class="btn btn-sm btn-info" onclick="bulkExport()">
+                        <i class="fas fa-download me-1"></i>Exporter sélection
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste des bulletins -->
+    <div class="card">
+        <div class="card-body">
+            {% if bulletins %}
+                <div class="table-responsive">
+                    <table class="table table-hover" id="bulletinsTable">
+                        <thead class="table-dark">
+                            <tr>
+                                <th width="40">
+                                    <input type="checkbox" id="selectAllCheck" onchange="toggleAllSelection()">
+                                </th>
+                                <th>Employé</th>
+                                <th>Période</th>
+                                <th>Salaire Brut</th>
+                                <th>Cotisations</th>
+                                <th>Salaire Net</th>
+                                <th>Statut</th>
+                                <th>Date Création</th>
+                                <th width="150">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for bulletin in bulletins %}
+                            <tr>
+                                <td>
+                                    <input type="checkbox" class="bulletin-checkbox" value="{{ bulletin.id }}" 
+                                           onchange="updateBulkActions()">
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if bulletin.employe.photo %}
+                                            <img src="{{ url_for('static', filename='uploads/employees/' + bulletin.employe.photo) }}" 
+                                                 alt="Photo" class="rounded-circle me-2" style="width: 40px; height: 40px;">
+                                        {% else %}
+                                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" 
+                                                 style="width: 40px; height: 40px;">
+                                                {{ bulletin.employe.prenom[0] }}{{ bulletin.employe.nom[0] }}
+                                            </div>
+                                        {% endif %}
+                                        <div>
+                                            <strong>{{ bulletin.employe.nom }} {{ bulletin.employe.prenom }}</strong><br>
+                                            <small class="text-muted">{{ bulletin.employe.matricule }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <strong>{{ bulletin.mois_nom }} {{ bulletin.annee }}</strong><br>
+                                    <small class="text-muted">{{ bulletin.employe.poste }}</small>
+                                </td>
+                                <td>
+                                    <strong>{{ format_currency(bulletin.salaire_brut) }}</strong>
+                                </td>
+                                <td>
+                                    <span class="text-muted">{{ format_currency(bulletin.total_cotisations) }}</span>
+                                </td>
+                                <td>
+                                    <strong class="text-success">{{ format_currency(bulletin.salaire_net) }}</strong>
+                                </td>
+                                <td>
+                                    {% if bulletin.statut == 'payé' %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check me-1"></i>Payé
+                                        </span>
+                                    {% elif bulletin.statut == 'validé' %}
+                                        <span class="badge bg-primary">
+                                            <i class="fas fa-clipboard-check me-1"></i>Validé
+                                        </span>
+                                    {% elif bulletin.statut == 'brouillon' %}
+                                        <span class="badge bg-secondary">
+                                            <i class="fas fa-edit me-1"></i>Brouillon
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-warning">{{ bulletin.statut }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {{ bulletin.date_creation.strftime('%d/%m/%Y') }}<br>
+                                    <small class="text-muted">{{ bulletin.date_creation.strftime('%H:%M') }}</small>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('paie.voir_bulletin', id=bulletin.id) }}" 
+                                           class="btn btn-outline-primary" title="Voir">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if bulletin.statut == 'brouillon' %}
+                                        <a href="{{ url_for('paie.modifier_bulletin', id=bulletin.id) }}" 
+                                           class="btn btn-outline-secondary" title="Modifier">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        {% endif %}
+                                        {% if bulletin.statut in ['validé', 'payé'] %}
+                                        <a href="{{ url_for('paie.telecharger_bulletin', id=bulletin.id) }}" 
+                                           class="btn btn-outline-success" title="Télécharger">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                        {% endif %}
+                                        <div class="btn-group">
+                                            <button type="button" class="btn btn-outline-info dropdown-toggle" 
+                                                    data-bs-toggle="dropdown" title="Plus d'actions">
+                                                <i class="fas fa-ellipsis-v"></i>
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item" href="{{ url_for('paie.dupliquer_bulletin', id=bulletin.id) }}">
+                                                    <i class="fas fa-copy me-2"></i>Dupliquer
+                                                </a></li>
+                                                <li><a class="dropdown-item" href="{{ url_for('paie.historique_bulletin', id=bulletin.id) }}">
+                                                    <i class="fas fa-history me-2"></i>Historique
+                                                </a></li>
+                                                {% if bulletin.statut == 'brouillon' %}
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li><a class="dropdown-item text-danger" href="#" onclick="supprimerBulletin({{ bulletin.id }})">
+                                                    <i class="fas fa-trash me-2"></i>Supprimer
+                                                </a></li>
+                                                {% endif %}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if pagination %}
+                <nav aria-label="Pagination" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if pagination.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('paie.bulletins', page=pagination.prev_num, **request.args) }}">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for page_num in pagination.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != pagination.page %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('paie.bulletins', page=page_num, **request.args) }}">
+                                            {{ page_num }}
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if pagination.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('paie.bulletins', page=pagination.next_num, **request.args) }}">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-file-invoice-dollar fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Aucun bulletin trouvé</h5>
+                    <p class="text-muted">Aucun bulletin ne correspond à vos critères de recherche</p>
+                    <a href="{{ url_for('paie.creer_bulletin') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Créer un bulletin
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Gestion des sélections multiples
+function selectAll() {
+    const checkboxes = document.querySelectorAll('.bulletin-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    document.getElementById('selectAllCheck').checked = true;
+    updateBulkActions();
+}
+
+function deselectAll() {
+    const checkboxes = document.querySelectorAll('.bulletin-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    document.getElementById('selectAllCheck').checked = false;
+    updateBulkActions();
+}
+
+function toggleAllSelection() {
+    const selectAllCheck = document.getElementById('selectAllCheck');
+    const checkboxes = document.querySelectorAll('.bulletin-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheck.checked;
+    });
+    
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const selectedCheckboxes = document.querySelectorAll('.bulletin-checkbox:checked');
+    const bulkActions = document.getElementById('bulk-actions');
+    
+    if (selectedCheckboxes.length > 0) {
+        bulkActions.style.display = 'block';
+    } else {
+        bulkActions.style.display = 'none';
+    }
+}
+
+// Actions de groupe
+function bulkValidate() {
+    const selectedIds = Array.from(document.querySelectorAll('.bulletin-checkbox:checked')).map(cb => cb.value);
+    if (selectedIds.length === 0) return;
+    
+    if (confirm(`Voulez-vous valider ${selectedIds.length} bulletin(s) sélectionné(s) ?`)) {
+        // Implémentation de la validation en masse
+        // Vous pouvez faire une requête AJAX ici
+        console.log('Validation en masse:', selectedIds);
+    }
+}
+
+function bulkPay() {
+    const selectedIds = Array.from(document.querySelectorAll('.bulletin-checkbox:checked')).map(cb => cb.value);
+    if (selectedIds.length === 0) return;
+    
+    if (confirm(`Voulez-vous marquer ${selectedIds.length} bulletin(s) comme payé(s) ?`)) {
+        // Implémentation du paiement en masse
+        console.log('Paiement en masse:', selectedIds);
+    }
+}
+
+function bulkExport() {
+    const selectedIds = Array.from(document.querySelectorAll('.bulletin-checkbox:checked')).map(cb => cb.value);
+    if (selectedIds.length === 0) return;
+    
+    // Redirection vers l'export avec les IDs sélectionnés
+    window.location.href = `{{ url_for('paie.export_bulletins') }}?ids=${selectedIds.join(',')}`;
+}
+
+function supprimerBulletin(id) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer ce bulletin ?')) {
+        // Implémentation de la suppression
+        fetch(`{{ url_for('paie.supprimer_bulletin', id=0) }}`.replace('0', id), {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erreur lors de la suppression');
+            }
+        });
+    }
+}
+
+// Initialisation DataTables
+$(document).ready(function() {
+    $('#bulletinsTable').DataTable({
+        "paging": false,
+        "searching": false,
+        "ordering": true,
+        "info": false,
+        "language": {
+            "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/fr-FR.json"
+        }
+    });
+});
+</script>
+{% endblock %}
