@@ -275,6 +275,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" action="{{ url_for('rh.edit_employe', id=employe.id) }}" enctype="multipart/form-data" id="editEmployeeForm">
+                {{ form.hidden_tag() }}
                 <div class="modal-body">
                     <div class="row">
                         <!-- Informations personnelles -->
@@ -566,6 +567,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" id="editDocumentForm">
+                {{ document_form.hidden_tag() }}
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Nom du document</label>
@@ -609,6 +611,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
                 <form method="POST" id="deleteForm" class="d-inline">
+                    {{ document_form.hidden_tag() }}
                     <button type="submit" class="btn btn-danger">Supprimer</button>
                 </form>
             </div>

@@ -6,12 +6,30 @@ from wtforms_sqlalchemy.fields import QuerySelectField
 from datetime import date, datetime
 
 class AbsenceForm(FlaskForm):
-    employe_id = SelectField("Employé", coerce=int, validators=[DataRequired()])
-    date_absence = DateField("Date de l'absence", format='%Y-%m-%d', validators=[DataRequired()])
+    employee_id = SelectField("Employé", coerce=int, validators=[DataRequired()])
+    type_absence = SelectField("Type d'absence", 
+                              choices=[('Maladie', 'Maladie'), ('Personnel', 'Personnel'), 
+                                      ('Autre', 'Autre')], 
+                              validators=[DataRequired()])
+    date_debut = DateField("Date de début", format='%Y-%m-%d', validators=[DataRequired()])
+    date_fin = DateField("Date de fin", format='%Y-%m-%d', validators=[DataRequired()])
     motif = StringField("Motif", validators=[DataRequired()])
-    justificatif = FileField("Justificatif (PDF ou image)", validators=[FileAllowed(['pdf', 'jpg', 'png', 'jpeg'], 'Fichier invalide')])
-    impact_paie = BooleanField("Impacter la paie ?")
+    justificatif = FileField("Justificatif (PDF ou image)", 
+                            validators=[FileAllowed(['pdf', 'jpg', 'png', 'jpeg'], 'Fichier invalide')])
+    statut = SelectField("Statut", 
+                        choices=[('En attente', 'En attente'), ('Justifiée', 'Justifiée'), 
+                                ('Non justifiée', 'Non justifiée')], 
+                        default='En attente')
     submit = SubmitField("Enregistrer")
+    
+    def __init__(self, *args, **kwargs):
+        super(AbsenceForm, self).__init__(*args, **kwargs)
+        # Load employee choices dynamically
+        from app.models import Employee
+        try:
+            self.employee_id.choices = [(emp.id, f"{emp.nom} {emp.prenom or ''}") for emp in Employee.query.all()]
+        except:
+            self.employee_id.choices = []
 
 class CongeForm(FlaskForm):
     employe_id = SelectField("Employé", coerce=int, validators=[DataRequired()])
@@ -604,7 +622,7 @@ class EmployeeDocumentForm(FlaskForm):
                               render_kw={'class': 'form-control'})
     description = TextAreaField("Description", validators=[Optional()],
                                render_kw={'class': 'form-control', 'rows': 3})
-    document = FileField("Fichier", validators=[Optional()],
+    fichier = FileField("Fichier", validators=[Optional()],
                         render_kw={'class': 'form-control'})
     submit = SubmitField("Enregistrer", render_kw={'class': 'btn btn-primary'})
 

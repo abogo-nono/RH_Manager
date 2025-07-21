@@ -3,7 +3,7 @@ from app import db
 import pandas as pd
 from io import BytesIO
 from weasyprint import HTML
-from app.models import Employee, Absence, EmployeeHistory, EmployeeDocument, Utilisateur
+from app.models import Employee, Absence, EmployeeHistory, EmployeeDocument, Utilisateur, Conge, Evaluation, BulletinPaie, Pointage, HeuresTravail
 from app.forms import EmployeeForm, AbsenceForm, EmployeeDocumentForm, EmployeeSearchForm
 from flask_login import login_required, current_user
 from app.utils.permissions import permission_requise
@@ -167,23 +167,26 @@ def list_absences():
     return render_template('absences/list.html', absences=absences, form=form)
 
 @rh_bp.route('/absences/add', methods=['POST'])
+@login_required
+@permission_requise('absences_conges')
 def add_absence():
     form = AbsenceForm()
     if form.validate_on_submit():
+        # Map form fields to model fields
         absence = Absence(
-            employee_id=form.employee_id.data,
-            type_absence=form.type_absence.data,
-            date_debut=form.date_debut.data,
-            date_fin=form.date_fin.data,
+            employe_id=form.employee_id.data,  # Map employee_id to employe_id
+            date_absence=form.date_debut.data,  # Use start date as absence date
             motif=form.motif.data,
-            justificatif=form.justificatif.data,
-            statut=form.statut.data
+            justificatif=form.justificatif.data.filename if form.justificatif.data else None,
+            etat=form.statut.data  # Map statut to etat
         )
         db.session.add(absence)
         db.session.commit()
-        flash("L'absence a été ajouté avec succès.", "success")
+        flash("L'absence a été ajoutée avec succès.", "success")
     else:
-        flash("Erreur lors de l'ajout de l'absence. Vérifiez le formulaire.", "danger")
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(f"Erreur {field}: {error}", "danger")
 
     return redirect(url_for('rh.list_absences'))
 
@@ -375,22 +378,27 @@ def edit_employe(id):
 
 # Modifier une absence
 @rh_bp.route('/absences/edit/<int:id>', methods=['POST'])
+@login_required
+@permission_requise('absences_conges')
 def edit_absence(id):
     absence = Absence.query.get_or_404(id)
     form = AbsenceForm()
 
     if form.validate_on_submit():
-        absence.employee_id = form.employee_id.data
-        absence.type_absence = form.type_absence.data
-        absence.date_debut = form.date_debut.data
-        absence.date_fin = form.date_fin.data
+        # Map form fields to model fields correctly
+        absence.employe_id = form.employee_id.data
+        absence.date_absence = form.date_debut.data  # Use start date as absence date
         absence.motif = form.motif.data
-        absence.justificatif = form.justificatif.data
-        absence.statut = form.statut.data
+        absence.justificatif = form.justificatif.data.filename if form.justificatif.data else absence.justificatif
+        absence.etat = form.statut.data  # Map statut to etat
 
         db.session.commit()
         flash("L'absence a été modifiée avec succès.", "success")
         return redirect(url_for('rh.list_absences'))
+    else:
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(f"Erreur {field}: {error}", "danger")
 
     return redirect(url_for('rh.list_absences'))
 
@@ -426,13 +434,67 @@ def delete_employe(id):
             if os.path.exists(contrat_path):
                 os.remove(contrat_path)
         
-        # Supprimer les documents associés
+        # Supprimer les documents associés et leurs fichiers
         for document in employe.documents:
             doc_path = os.path.join(current_app.root_path, 'static', 'uploads', 'employees', 'documents', document.chemin_fichier)
             if os.path.exists(doc_path):
                 os.remove(doc_path)
+            db.session.delete(document)
+        
+        # Supprimer les enregistrements liés dans l'ordre de dépendance
+        # 1. Supprimer les absences
+        for absence in employe.absences:
+            db.session.delete(absence)
+        
+        # 2. Supprimer les congés
+        for conge in employe.conges:
+            db.session.delete(conge)
+        
+        # 3. Supprimer les évaluations (comme employé évalué)
+        from app.models import Evaluation
+        evaluations = Evaluation.query.filter_by(employe_id=id).all()
+        for evaluation in evaluations:
+            db.session.delete(evaluation)
+        
+        # 4. Supprimer les évaluations (comme évaluateur)
+        evaluations_evaluateur = Evaluation.query.filter_by(evaluateur_id=id).all()
+        for evaluation in evaluations_evaluateur:
+            # Ne pas supprimer, mais retirer la référence de l'évaluateur
+            evaluation.evaluateur_id = None
+        
+        # 5. Supprimer les bulletins de paie
+        from app.models import BulletinPaie
+        bulletins = BulletinPaie.query.filter_by(employe_id=id).all()
+        for bulletin in bulletins:
+            db.session.delete(bulletin)
+        
+        # 6. Supprimer les pointages
+        from app.models import Pointage
+        pointages = Pointage.query.filter_by(employe_id=id).all()
+        for pointage in pointages:
+            db.session.delete(pointage)
+        
+        # 7. Supprimer les heures de travail
+        from app.models import HeuresTravail
+        heures_travail = HeuresTravail.query.filter_by(employe_id=id).all()
+        for heure in heures_travail:
+            db.session.delete(heure)
+        
+        # 8. Gérer les relations manager/subordonné
+        # Retirer les références de manager pour les subordonnés
+        subordonnés = Employee.query.filter_by(manager_id=id).all()
+        for subordonné in subordonnés:
+            subordonné.manager_id = None
+        
+        # 9. Supprimer l'historique de l'employé
+        from app.models import EmployeeHistory
+        historique = EmployeeHistory.query.filter_by(employee_id=id).all()
+        for hist in historique:
+            db.session.delete(hist)
         
         employe_nom = employe.nom_complet
+        
+        # Maintenant supprimer l'employé
         db.session.delete(employe)
         db.session.commit()
         
@@ -465,6 +527,7 @@ def delete_absence(id):
 def detail_employe(id):
     employe = Employee.query.get_or_404(id)
     document_form = EmployeeDocumentForm()
+    employee_form = EmployeeForm(obj=employe)  # Pre-populate form with employee data
     
     # Récupérer l'historique des modifications
     historique = EmployeeHistory.query.filter_by(employee_id=id).order_by(EmployeeHistory.date_modification.desc()).limit(20).all()
@@ -472,12 +535,14 @@ def detail_employe(id):
     # Récupérer la liste des employés pour le champ manager (sauf l'employé actuel)
     employes_managers = Employee.query.filter(Employee.id != id).all()
     
-    return render_template("employes/detail.html", employe=employe, document_form=document_form, historique=historique, employes_managers=employes_managers)
+    return render_template("employes/detail.html", employe=employe, form=employee_form, document_form=document_form, historique=historique, employes_managers=employes_managers)
 
 #***************************************************************EXPORT***********************************************************************
 
 # Exportation employés Excel et PDF
 @rh_bp.route('/employes/export/excel')
+@login_required
+@permission_requise('employes')
 def export_employes_excel():
     employes = Employee.query.all()
     data = [{
@@ -498,6 +563,8 @@ def export_employes_excel():
     return send_file(output, as_attachment=True, download_name="employes.xlsx", mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
 @rh_bp.route('/employes/export/pdf')
+@login_required
+@permission_requise('employes')
 def export_employes_pdf():
     employes = Employee.query.all()
     rendered = render_template('employes/employes_pdf.html', employes=employes)
@@ -509,6 +576,8 @@ def export_employes_pdf():
 
 # Exportation Absences Excel et PDF 
 @rh_bp.route('/absences/export/excel')
+@login_required
+@permission_requise('absences_conges')
 def export_absences_excel():
     absences = Absence.query.all()
     data = [{
@@ -529,6 +598,8 @@ def export_absences_excel():
     return send_file(output, download_name="absences.xlsx", as_attachment=True)
 
 @rh_bp.route('/absences/export/pdf')
+@login_required
+@permission_requise('absences_conges')
 def export_absences_pdf():
     absences = Absence.query.all()
     rendered = render_template('absences/absences_pdf.html', absences=absences)

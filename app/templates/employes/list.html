@@ -141,18 +141,70 @@
                     <tbody>
         {% for emp in employes %}
         <tr>            
-          <td>{{ emp.id }}</td>
-          <td>{{ emp.nom }}</td>
-          <td>{{ emp.poste }}</td> 
-          <td>{{ emp.departement }}</td>
-        <td>{{ emp.email }} <br>+237 {{ emp.telephone }}</td>
           <td>
-            <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#editEmployeModal{{ emp.id }}"><i class="bi bi-pencil"></i></button>
-            <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteEmployeModal{{ emp.id }}"><i class="bi bi-trash"></i></button>
-            <a href="{{ url_for('evaluation.list_evaluations', employe_id=emp.id) }}" 
-               class="btn btn-outline-info btn-sm" title="Évaluations"><i class="bi bi-clipboard-data"></i></a>
+            {% if emp.photo_profil %}
+              <img src="{{ url_for('static', filename='uploads/employees/photos/' + emp.photo_profil) }}" 
+                   class="rounded-circle" style="width: 40px; height: 40px; object-fit: cover;" 
+                   alt="Photo {{ emp.nom_complet }}">
+            {% else %}
+              <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center" 
+                   style="width: 40px; height: 40px;">
+                <i class="bi bi-person-fill text-white"></i>
+              </div>
+            {% endif %}
           </td>
-
+          <td>
+            <strong>{{ emp.nom_complet or (emp.nom + ' ' + (emp.prenom or '')) }}</strong>
+            {% if emp.sexe %}
+              <br><small class="text-muted">{{ emp.sexe }}</small>
+            {% endif %}
+            {% if emp.situation_matrimoniale %}
+              <br><small class="text-muted">{{ emp.situation_matrimoniale }}</small>
+            {% endif %}
+          </td>
+          <td>{{ emp.poste or '-' }}</td> 
+          <td>{{ emp.departement or '-' }}</td>
+          <td>
+            {{ emp.email or '-' }}
+            {% if emp.telephone %}
+              <br><small>+237 {{ emp.telephone }}</small>
+            {% endif %}
+          </td>
+          <td>
+            {% if emp.statut == 'Actif' %}
+              <span class="badge bg-success">{{ emp.statut }}</span>
+            {% elif emp.statut == 'Inactif' %}
+              <span class="badge bg-danger">{{ emp.statut }}</span>
+            {% elif emp.statut == 'Suspendu' %}
+              <span class="badge bg-warning">{{ emp.statut }}</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ emp.statut or 'Non défini' }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if emp.anciennete_annees %}
+              {{ emp.anciennete_annees }} an{{ 's' if emp.anciennete_annees > 1 else '' }}
+              <br><small class="text-muted">{{ emp.anciennete_jours }} jours</small>
+            {% else %}
+              <small class="text-muted">-</small>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('rh.detail_employe', id=emp.id) }}" 
+               class="btn btn-sm btn-outline-info" title="Voir détails">
+              <i class="bi bi-eye"></i>
+            </a>
+            <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#editEmployeModal{{ emp.id }}" title="Modifier">
+              <i class="bi bi-pencil"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteEmployeModal{{ emp.id }}" title="Supprimer">
+              <i class="bi bi-trash"></i>
+            </button>
+            <a href="{{ url_for('evaluation.list_evaluations', employe_id=emp.id) }}" 
+               class="btn btn-outline-info btn-sm" title="Évaluations">
+              <i class="bi bi-clipboard-data"></i>
+            </a>
+          </td>
         </tr>
         {% endfor %}
     </tbody>
@@ -160,23 +212,79 @@
 
 <!-- Modal ajouter -->
 <div class="modal fade" id="addEmployeModal" tabindex="-1" aria-labelledby="addEmployeModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="addEmployeModalLabel">Ajouter un employé</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
       </div>
-      <form method="POST" action="/employes/add">
+      <form method="POST" action="/employes/add" enctype="multipart/form-data">
         <div class="modal-body">
           {{ form.hidden_tag() }}
-          <div class="mb-3">{{ form.nom.label }} {{ form.nom(class="form-control") }}</div>
-          <div class="mb-3">{{ form.poste.label }} {{ form.poste(class="form-control") }}</div>
-          <div class="mb-3">{{ form.departement.label }} {{ form.departement(class="form-control") }}</div>
-          <div class="mb-3">{{ form.email.label }} {{ form.email(class="form-control") }}</div>
-          <div class="mb-3">{{ form.telephone.label }} {{ form.telephone(class="form-control") }}</div>
-          <div class="mb-3">{{ form.type_contrat.label }} {{ form.type_contrat(class="form-control") }}</div>
-          <div class="mb-3">{{ form.date_embauche.label }} {{ form.date_embauche(class="form-control") }}</div>
-          <div class="mb-3">{{ form.statut.label }} {{ form.statut(class="form-control") }}</div>
+          
+          <!-- Informations personnelles -->
+          <h6 class="text-primary mb-3"><i class="bi bi-person-fill"></i> Informations personnelles</h6>
+          <div class="row">
+            <div class="col-md-6 mb-3">{{ form.nom.label(class="form-label") }} {{ form.nom(class="form-control") }}</div>
+            <div class="col-md-6 mb-3">{{ form.prenom.label(class="form-label") }} {{ form.prenom(class="form-control") }}</div>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">{{ form.date_naissance.label(class="form-label") }} {{ form.date_naissance(class="form-control") }}</div>
+            <div class="col-md-6 mb-3">{{ form.lieu_naissance.label(class="form-label") }} {{ form.lieu_naissance(class="form-control") }}</div>
+          </div>
+          <div class="row">
+            <div class="col-md-4 mb-3">{{ form.sexe.label(class="form-label") }} {{ form.sexe(class="form-control") }}</div>
+            <div class="col-md-4 mb-3">{{ form.nationalite.label(class="form-label") }} {{ form.nationalite(class="form-control") }}</div>
+            <div class="col-md-4 mb-3">{{ form.situation_matrimoniale.label(class="form-label") }} {{ form.situation_matrimoniale(class="form-control") }}</div>
+          </div>
+          <div class="col-md-6 mb-3">{{ form.nombre_enfants.label(class="form-label") }} {{ form.nombre_enfants(class="form-control") }}</div>
+
+          <!-- Contact -->
+          <h6 class="text-primary mb-3 mt-4"><i class="bi bi-telephone-fill"></i> Contact</h6>
+          <div class="row">
+            <div class="col-md-6 mb-3">{{ form.email.label(class="form-label") }} {{ form.email(class="form-control") }}</div>
+            <div class="col-md-6 mb-3">{{ form.telephone.label(class="form-label") }} {{ form.telephone(class="form-control") }}</div>
+          </div>
+          <div class="col-md-6 mb-3">{{ form.telephone_urgence.label(class="form-label") }} {{ form.telephone_urgence(class="form-control") }}</div>
+          <div class="row">
+            <div class="col-md-8 mb-3">{{ form.adresse.label(class="form-label") }} {{ form.adresse(class="form-control", rows="2") }}</div>
+            <div class="col-md-4 mb-3">{{ form.ville.label(class="form-label") }} {{ form.ville(class="form-control") }}</div>
+          </div>
+
+          <!-- Informations professionnelles -->
+          <h6 class="text-primary mb-3 mt-4"><i class="bi bi-briefcase-fill"></i> Informations professionnelles</h6>
+          <div class="row">
+            <div class="col-md-6 mb-3">{{ form.poste.label(class="form-label") }} {{ form.poste(class="form-control") }}</div>
+            <div class="col-md-6 mb-3">{{ form.departement.label(class="form-label") }} {{ form.departement(class="form-control") }}</div>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">{{ form.type_contrat.label(class="form-label") }} {{ form.type_contrat(class="form-control") }}</div>
+            <div class="col-md-6 mb-3">{{ form.date_embauche.label(class="form-label") }} {{ form.date_embauche(class="form-control") }}</div>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">{{ form.salaire_base.label(class="form-label") }} {{ form.salaire_base(class="form-control") }}</div>
+            <div class="col-md-6 mb-3">{{ form.statut.label(class="form-label") }} {{ form.statut(class="form-control") }}</div>
+          </div>
+          <div class="mb-3">{{ form.manager_id.label(class="form-label") }} {{ form.manager_id(class="form-control") }}</div>
+
+          <!-- Documents -->
+          <h6 class="text-primary mb-3 mt-4"><i class="bi bi-file-earmark-text-fill"></i> Documents d'identité</h6>
+          <div class="row">
+            <div class="col-md-6 mb-3">{{ form.numero_cni.label(class="form-label") }} {{ form.numero_cni(class="form-control") }}</div>
+            <div class="col-md-6 mb-3">{{ form.numero_cnps.label(class="form-label") }} {{ form.numero_cnps(class="form-control") }}</div>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">{{ form.numero_compte_bancaire.label(class="form-label") }} {{ form.numero_compte_bancaire(class="form-control") }}</div>
+            <div class="col-md-6 mb-3">{{ form.banque.label(class="form-label") }} {{ form.banque(class="form-control") }}</div>
+          </div>
+
+          <!-- Fichiers -->
+          <h6 class="text-primary mb-3 mt-4"><i class="bi bi-cloud-upload-fill"></i> Fichiers</h6>
+          <div class="row">
+            <div class="col-md-4 mb-3">{{ form.photo_profil.label(class="form-label") }} {{ form.photo_profil(class="form-control") }}</div>
+            <div class="col-md-4 mb-3">{{ form.cv_file.label(class="form-label") }} {{ form.cv_file(class="form-control") }}</div>
+            <div class="col-md-4 mb-3">{{ form.contrat_file.label(class="form-label") }} {{ form.contrat_file(class="form-control") }}</div>
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
@@ -190,46 +298,194 @@
 <!-- Modal Modifier pour chaque employé -->
 {% for emp in employes %}
 <div class="modal fade" id="editEmployeModal{{ emp.id }}" tabindex="-1" aria-labelledby="editEmployeModalLabel{{ emp.id }}" aria-hidden="true">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
-      <form method="POST" action="/employes/edit/{{ emp.id }}">
+      <form method="POST" action="/employes/edit/{{ emp.id }}" enctype="multipart/form-data">
         <div class="modal-header">
-          <h5 class="modal-title" id="editEmployeModalLabel{{ emp.id }}">Modifier {{ emp.nom }}</h5>
+          <h5 class="modal-title" id="editEmployeModalLabel{{ emp.id }}">Modifier {{ emp.nom_complet }}</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
         </div>
         <div class="modal-body">
           {{ form.hidden_tag() }}
-          <div class="mb-3">
-            <label>Nom</label>
-            <input type="text" name="nom" value="{{ emp.nom }}" class="form-control">
+          
+          <!-- Informations personnelles -->
+          <h6 class="text-primary mb-3"><i class="bi bi-person-fill"></i> Informations personnelles</h6>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Nom de famille</label>
+              <input type="text" name="nom" value="{{ emp.nom }}" class="form-control">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Prénom</label>
+              <input type="text" name="prenom" value="{{ emp.prenom or '' }}" class="form-control">
+            </div>
           </div>
-          <div class="mb-3">
-            <label>Poste</label>
-            <input type="text" name="poste" value="{{ emp.poste }}" class="form-control">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Date de naissance</label>
+              <input type="date" name="date_naissance" value="{{ emp.date_naissance or '' }}" class="form-control">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Lieu de naissance</label>
+              <input type="text" name="lieu_naissance" value="{{ emp.lieu_naissance or '' }}" class="form-control">
+            </div>
           </div>
-          <div class="mb-3">
-            <label>Département</label>
-            <input type="text" name="departement" value="{{ emp.departement }}" class="form-control">
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Sexe</label>
+              <select name="sexe" class="form-control">
+                <option value="">Sélectionner</option>
+                <option value="Masculin" {% if emp.sexe == 'Masculin' %}selected{% endif %}>Masculin</option>
+                <option value="Féminin" {% if emp.sexe == 'Féminin' %}selected{% endif %}>Féminin</option>
+              </select>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Nationalité</label>
+              <input type="text" name="nationalite" value="{{ emp.nationalite or 'Camerounaise' }}" class="form-control">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Situation matrimoniale</label>
+              <select name="situation_matrimoniale" class="form-control">
+                <option value="">Sélectionner</option>
+                <option value="Célibataire" {% if emp.situation_matrimoniale == 'Célibataire' %}selected{% endif %}>Célibataire</option>
+                <option value="Marié(e)" {% if emp.situation_matrimoniale == 'Marié(e)' %}selected{% endif %}>Marié(e)</option>
+                <option value="Divorcé(e)" {% if emp.situation_matrimoniale == 'Divorcé(e)' %}selected{% endif %}>Divorcé(e)</option>
+                <option value="Veuf(ve)" {% if emp.situation_matrimoniale == 'Veuf(ve)' %}selected{% endif %}>Veuf(ve)</option>
+              </select>
+            </div>
           </div>
-          <div class="mb-3">
-            <label>Email</label>
-            <input type="email" name="email" value="{{ emp.email }}" class="form-control">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Nombre d'enfants</label>
+            <input type="number" name="nombre_enfants" value="{{ emp.nombre_enfants or 0 }}" class="form-control">
           </div>
-          <div class="mb-3">
-            <label>Téléphone</label>
-            <input type="text" name="telephone" value="{{ emp.telephone }}" class="form-control">
+
+          <!-- Contact -->
+          <h6 class="text-primary mb-3 mt-4"><i class="bi bi-telephone-fill"></i> Contact</h6>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Email</label>
+              <input type="email" name="email" value="{{ emp.email or '' }}" class="form-control">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Téléphone</label>
+              <input type="text" name="telephone" value="{{ emp.telephone or '' }}" class="form-control">
+            </div>
           </div>
-          <div class="mb-3">
-            <label>Type de contrat</label>
-            <input type="text" name="type_contrat" value="{{ emp.type_contrat }}" class="form-control">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Téléphone d'urgence</label>
+            <input type="text" name="telephone_urgence" value="{{ emp.telephone_urgence or '' }}" class="form-control">
           </div>
-          <div class="mb-3">
-            <label>Date d'embauche</label>
-            <input type="date" name="date_embauche" value="{{ emp.date_embauche }}" class="form-control">
+          <div class="row">
+            <div class="col-md-8 mb-3">
+              <label class="form-label">Adresse complète</label>
+              <textarea name="adresse" class="form-control" rows="2">{{ emp.adresse or '' }}</textarea>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Ville</label>
+              <input type="text" name="ville" value="{{ emp.ville or '' }}" class="form-control">
+            </div>
           </div>
-          <div class="mb-3">
-            <label>Statut</label>
-            <input type="text" name="statut" value="{{ emp.statut }}" class="form-control">
+
+          <!-- Informations professionnelles -->
+          <h6 class="text-primary mb-3 mt-4"><i class="bi bi-briefcase-fill"></i> Informations professionnelles</h6>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Poste</label>
+              <input type="text" name="poste" value="{{ emp.poste or '' }}" class="form-control">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Département</label>
+              <select name="departement" class="form-control">
+                <option value="">Sélectionner</option>
+                <option value="Ressources Humaines" {% if emp.departement == 'Ressources Humaines' %}selected{% endif %}>Ressources Humaines</option>
+                <option value="IT" {% if emp.departement == 'IT' %}selected{% endif %}>IT</option>
+                <option value="Finance" {% if emp.departement == 'Finance' %}selected{% endif %}>Finance</option>
+                <option value="Administration" {% if emp.departement == 'Administration' %}selected{% endif %}>Administration</option>
+                <option value="Commercial" {% if emp.departement == 'Commercial' %}selected{% endif %}>Commercial</option>
+                <option value="Production" {% if emp.departement == 'Production' %}selected{% endif %}>Production</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Type de contrat</label>
+              <select name="type_contrat" class="form-control">
+                <option value="">Sélectionner</option>
+                <option value="CDI" {% if emp.type_contrat == 'CDI' %}selected{% endif %}>CDI</option>
+                <option value="CDD" {% if emp.type_contrat == 'CDD' %}selected{% endif %}>CDD</option>
+                <option value="Stage" {% if emp.type_contrat == 'Stage' %}selected{% endif %}>Stage</option>
+                <option value="Freelance" {% if emp.type_contrat == 'Freelance' %}selected{% endif %}>Freelance</option>
+              </select>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Date d'embauche</label>
+              <input type="date" name="date_embauche" value="{{ emp.date_embauche or '' }}" class="form-control">
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Salaire de base (FCFA)</label>
+              <input type="number" name="salaire_base" value="{{ emp.salaire_base or '' }}" class="form-control">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Statut</label>
+              <select name="statut" class="form-control">
+                <option value="Actif" {% if emp.statut == 'Actif' %}selected{% endif %}>Actif</option>
+                <option value="Inactif" {% if emp.statut == 'Inactif' %}selected{% endif %}>Inactif</option>
+                <option value="Suspendu" {% if emp.statut == 'Suspendu' %}selected{% endif %}>Suspendu</option>
+                <option value="En congé" {% if emp.statut == 'En congé' %}selected{% endif %}>En congé</option>
+                <option value="Démissionné" {% if emp.statut == 'Démissionné' %}selected{% endif %}>Démissionné</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Documents -->
+          <h6 class="text-primary mb-3 mt-4"><i class="bi bi-file-earmark-text-fill"></i> Documents d'identité</h6>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Numéro CNI</label>
+              <input type="text" name="numero_cni" value="{{ emp.numero_cni or '' }}" class="form-control">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Numéro CNPS</label>
+              <input type="text" name="numero_cnps" value="{{ emp.numero_cnps or '' }}" class="form-control">
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Numéro de compte bancaire</label>
+              <input type="text" name="numero_compte_bancaire" value="{{ emp.numero_compte_bancaire or '' }}" class="form-control">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Banque</label>
+              <input type="text" name="banque" value="{{ emp.banque or '' }}" class="form-control">
+            </div>
+          </div>
+
+          <!-- Fichiers -->
+          <h6 class="text-primary mb-3 mt-4"><i class="bi bi-cloud-upload-fill"></i> Fichiers</h6>
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Photo de profil</label>
+              <input type="file" name="photo_profil" class="form-control" accept=".jpg,.png,.jpeg">
+              {% if emp.photo_profil %}
+                <small class="text-muted">Fichier actuel: {{ emp.photo_profil }}</small>
+              {% endif %}
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">CV</label>
+              <input type="file" name="cv_file" class="form-control" accept=".pdf,.doc,.docx">
+              {% if emp.cv_file %}
+                <small class="text-muted">Fichier actuel: {{ emp.cv_file }}</small>
+              {% endif %}
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Contrat</label>
+              <input type="file" name="contrat_file" class="form-control" accept=".pdf,.doc,.docx">
+              {% if emp.contrat_file %}
+                <small class="text-muted">Fichier actuel: {{ emp.contrat_file }}</small>
+              {% endif %}
+            </div>
           </div>
         </div>
         <div class="modal-footer">

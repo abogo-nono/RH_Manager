@@ -80,8 +80,8 @@ def create_app():
     app.register_blueprint(paie_bp)
     
     # Enregistrer les commandes CLI
-    from app.utils.cli_commands import register_commands
-    register_commands(app)
+    # from app.utils.cli_commands import register_commands
+    # register_commands(app)
 
     return app
 

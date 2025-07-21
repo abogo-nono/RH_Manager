@@ -1,0 +1,320 @@
+
+<!-- Minimal congés template to fix caching issues -->
+<div class="tab-pane fade show active" id="conges" role="tabpanel">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5>Gestion des Congés</h5>
+    <p class="text-info">Module en cours de réparation - Version simplifiée</p>
+  </div>
+
+  <!-- Table des congés -->
+  <div class="table-responsive">
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>Employé</th>
+          <th>Type</th>
+          <th>Date début</th>
+          <th>Date fin</th>
+          <th>Statut</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for conge in conges %}
+        <tr>
+          <td>{{ conge.employe.nom_complet if conge.employe else 'N/A' }}</td>
+          <td>{{ conge.type_conge.nom if conge.type_conge else 'N/A' }}</td>
+          <td>{{ conge.date_debut.strftime('%d/%m/%Y') if conge.date_debut else 'N/A' }}</td>
+          <td>{{ conge.date_fin.strftime('%d/%m/%Y') if conge.date_fin else 'N/A' }}</td>
+          <td>
+            <span class="badge {% if conge.statut == 'Approuvé' %}bg-success{% elif conge.statut == 'Rejeté' %}bg-danger{% else %}bg-warning{% endif %}">
+              {{ conge.statut }}
+            </span>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="5" class="text-center text-muted">Aucun congé trouvé</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+        </tr>
+      </thead>
+      <tbody>
+        {% for conge in conges %}
+        <tr data-statut="{{ conge.statut }}" data-type="{{ conge.type_conge.code if conge.type_conge else conge.type_conge_id }}" data-employe="{{ conge.employe.nom }} {{ conge.employe.prenom }}">
+          <td>
+            <div class="d-flex align-items-center">
+              {% if conge.employe.photo %}
+              <img src="{{ url_for('static', filename='uploads/employees/photos/' ~ conge.employe.photo) }}" 
+                   class="rounded-circle me-2" width="32" height="32" alt="Photo">
+              {% else %}
+              <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center me-2" 
+                   style="width: 32px; height: 32px;">
+                <i class="bi bi-person text-white"></i>
+              </div>
+              {% endif %}
+              <div>
+                <div class="fw-bold">{{ conge.employe.nom }} {{ conge.employe.prenom }}</div>
+                <small class="text-muted">{{ conge.employe.poste }}</small>
+              </div>
+            </div>
+          </td>
+          <td>
+            {% if conge.type_conge %}
+            <span class="badge" style="background-color: {{ conge.type_conge.couleur|default('#6c757d') }};">
+              {{ conge.type_conge.nom }}
+            </span>
+            {% else %}
+            <span class="badge bg-secondary">{{ conge.type_conge_id }}</span>
+            {% endif %}
+          </td>
+          <td>
+            <div>{{ conge.date_debut.strftime('%d/%m/%Y') }}</div>
+            <small class="text-muted">au {{ conge.date_fin.strftime('%d/%m/%Y') }}</small>
+          </td>
+          <td>
+            <span class="fw-bold">{{ conge.nombre_jours_calcule }} jour(s)</span>
+            {% if conge.nombre_jours_ouvrables != conge.nombre_jours_calcule %}
+            <br><small class="text-muted">{{ conge.nombre_jours_ouvrables }} ouvrables</small>
+            {% endif %}
+          </td>
+          <td>
+            <div class="text-truncate" style="max-width: 200px;" title="{{ conge.motif }}">
+              {{ conge.motif }}
+            </div>
+          </td>
+          <td>
+            {% if conge.statut == 'en_attente' %}
+            <span class="badge bg-warning text-dark">
+              <i class="bi bi-clock"></i> En attente
+            </span>
+            {% elif conge.statut == 'approuve' %}
+            <span class="badge bg-success">
+              <i class="bi bi-check-circle"></i> Approuvé
+            </span>
+            {% elif conge.statut == 'rejete' %}
+            <span class="badge bg-danger">
+              <i class="bi bi-x-circle"></i> Rejeté
+            </span>
+            {% endif %}
+          </td>
+          <td>{{ conge.date_demande.strftime('%d/%m/%Y') if conge.date_demande else '-' }}</td>
+          <td>
+            <div class="btn-group btn-group-sm">
+              <button class="btn btn-outline-primary" onclick="voirDetailConge({{ conge.id }})" title="Voir détail">
+                <i class="bi bi-eye"></i>
+              </button>
+              {% if conge.statut == 'en_attente' and (current_user.role.nom in ['Admin', 'Manager RH'] or current_user.id == conge.demandeur_id) %}
+              <button class="btn btn-outline-success" onclick="modifierConge({{ conge.id }})" title="Modifier">
+                <i class="bi bi-pencil"></i>
+              </button>
+              {% endif %}
+              {% if current_user.role.nom in ['Admin', 'Manager RH'] and conge.statut == 'en_attente' %}
+              <button class="btn btn-outline-success" onclick="approuverConge({{ conge.id }})" title="Approuver">
+                <i class="bi bi-check"></i>
+              </button>
+              <button class="btn btn-outline-danger" onclick="rejeterConge({{ conge.id }})" title="Rejeter">
+                <i class="bi bi-x"></i>
+              </button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if conges.pages > 1 %}
+  <nav aria-label="Navigation congés">
+    <ul class="pagination justify-content-center">
+      {% if conges.has_prev %}
+      <li class="page-item">
+        <a class="page-link" href="{{ url_for('conges_temps.index', page=conges.prev_num) }}">Précédent</a>
+      </li>
+      {% endif %}
+      
+      {% for page_num in conges.iter_pages() %}
+      {% if page_num %}
+        {% if page_num != conges.page %}
+        <li class="page-item">
+          <a class="page-link" href="{{ url_for('conges_temps.index', page=page_num) }}">{{ page_num }}</a>
+        </li>
+        {% else %}
+        <li class="page-item active">
+          <span class="page-link">{{ page_num }}</span>
+        </li>
+        {% endif %}
+      {% else %}
+      <li class="page-item disabled">
+        <span class="page-link">…</span>
+      </li>
+      {% endif %}
+      {% endfor %}
+      
+      {% if conges.has_next %}
+      <li class="page-item">
+        <a class="page-link" href="{{ url_for('conges_temps.index', page=conges.next_num) }}">Suivant</a>
+      </li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+</div>
+
+<!-- Modal Nouvelle demande de congé -->
+<!-- Template refresh 02:30 -->
+<div class="modal fade" id="modalDemandeConge" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <form class="modal-content" method="POST" action="{{ url_for('conges_temps.add_conge') }}" enctype="multipart/form-data">
+      <div class="modal-header">
+        <h5 class="modal-title">Nouvelle demande de congé</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {% if form_conge %}
+        {{ form_conge.hidden_tag() }}
+        
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            {{ form_conge.employe_id.label(class="form-label") }}
+            {{ form_conge.employe_id(class="form-select") }}
+          </div>
+          <div class="col-md-6 mb-3">
+            {{ form_conge.type_conge.label(class="form-label") }}
+            {{ form_conge.type_conge(class="form-select") }}
+          </div>
+        </div>
+        
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            {{ form_conge.date_debut.label(class="form-label") }}
+            {{ form_conge.date_debut(class="form-control", onchange="calculerDuree()") }}
+          </div>
+          <div class="col-md-6 mb-3">
+            {{ form_conge.date_fin.label(class="form-label") }}
+            {{ form_conge.date_fin(class="form-control", onchange="calculerDuree()") }}
+          </div>
+        </div>
+        
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Durée calculée</label>
+            <div class="form-control-plaintext" id="dureeCalculee">-</div>
+          </div>
+          <div class="col-md-6 mb-3">
+            {{ form_conge.remplacant_id.label(class="form-label") }}
+            {{ form_conge.remplacant_id(class="form-select") }}
+          </div>
+        </div>
+        
+        <div class="mb-3">
+          {{ form_conge.motif.label(class="form-label") }}
+          {{ form_conge.motif(class="form-control", rows="3", placeholder="Motif de la demande") }}
+        </div>
+        
+        <div class="mb-3">
+          {{ form_conge.justificatif.label(class="form-label") }}
+          {{ form_conge.justificatif(class="form-control") }}
+          <small class="form-text text-muted">Formats acceptés: PDF, JPG, PNG (max 5MB)</small>
+        </div>
+        {% else %}
+        <p class="text-muted">Formulaire en cours de configuration...</p>
+        {% endif %}
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Envoyer la demande</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal Détail congé -->
+<div class="modal fade" id="modalDetailConge" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Détail de la demande de congé</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="detailCongeContent">
+        <!-- Contenu chargé dynamiquement -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function filtrerConges() {
+  const statut = document.getElementById('filtreStatut').value.toLowerCase();
+  const type = document.getElementById('filtreType').value.toLowerCase();
+  const employe = document.getElementById('filtreEmploye').value.toLowerCase();
+  const rows = document.querySelectorAll('#tableConges tbody tr');
+  
+  rows.forEach(row => {
+    const rowStatut = row.dataset.statut.toLowerCase();
+    const rowType = row.dataset.type.toLowerCase();
+    const rowEmploye = row.dataset.employe.toLowerCase();
+    
+    const matchStatut = !statut || rowStatut.includes(statut);
+    const matchType = !type || rowType.includes(type);
+    const matchEmploye = !employe || rowEmploye.includes(employe);
+    
+    row.style.display = matchStatut && matchType && matchEmploye ? '' : 'none';
+  });
+}
+
+function calculerDuree() {
+  const dateDebut = new Date(document.getElementById('date_debut').value);
+  const dateFin = new Date(document.getElementById('date_fin').value);
+  
+  if (dateDebut && dateFin && dateFin >= dateDebut) {
+    const diffTime = Math.abs(dateFin - dateDebut);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    document.getElementById('dureeCalculee').textContent = diffDays + ' jour(s)';
+  } else {
+    document.getElementById('dureeCalculee').textContent = '-';
+  }
+}
+
+function voirDetailConge(id) {
+  fetch(`{{ url_for('conges_temps.detail_conge', id=0) }}`.replace('0', id))
+    .then(response => response.text())
+    .then(html => {
+      document.getElementById('detailCongeContent').innerHTML = html;
+      new bootstrap.Modal(document.getElementById('modalDetailConge')).show();
+    });
+}
+
+function approuverConge(id) {
+  if (confirm('Approuver cette demande de congé ?')) {
+    fetch(`{{ url_for('conges_temps.approuver_conge', id=0) }}`.replace('0', id), {
+      method: 'POST',
+      headers: {'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''}
+    }).then(() => location.reload());
+  }
+}
+
+function rejeterConge(id) {
+  const motif = prompt('Motif de rejet (optionnel):');
+  if (motif !== null) {
+    fetch(`{{ url_for('conges_temps.rejeter_conge', id=0) }}`.replace('0', id), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
+      },
+      body: JSON.stringify({motif_rejet: motif})
+    }).then(() => location.reload());
+  }
+}
+
+function exportConges() {
+  window.open(`{{ url_for('conges_temps.export_conges') }}`, '_blank');
+}
+</script>
